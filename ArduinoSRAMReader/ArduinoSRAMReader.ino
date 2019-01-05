@@ -1,7 +1,68 @@
 const unsigned long MEM_SIZE = 0x20000L;
 const unsigned int STATUS_LED = 13;
+const unsigned int DQ0 = 2;
+const unsigned int DQ1 = 3;
+const unsigned int DQ2 = 4;
+const unsigned int DQ3 = 5;
+const unsigned int DQ4 = 6;
+const unsigned int DQ5 = 7;
+const unsigned int DQ6 = 8;
+const unsigned int DQ7 = 9;
 
-unsigned char read_byte() {
+const unsigned int SERDAT = 10;
+const unsigned int SERCLK = 11;
+
+void read_mode() {
+  pinMode(DQ0, INPUT);
+  pinMode(DQ1, INPUT);
+  pinMode(DQ2, INPUT);
+  pinMode(DQ3, INPUT);
+  pinMode(DQ4, INPUT);
+  pinMode(DQ5, INPUT);
+  pinMode(DQ6, INPUT);
+  pinMode(DQ7, INPUT);
+}
+
+void add_address_bit(unsigned long val) {
+  digitalWrite(SERCLK, LOW);
+  digitalWrite(SERDAT, val ? HIGH : LOW);
+  delayMicroseconds(1);
+  digitalWrite(SERCLK, HIGH);
+  delayMicroseconds(1);
+  digitalWrite(SERCLK, LOW);
+}
+
+unsigned char read_sram(unsigned long address) {
+  for(unsigned int i = 0; i < 24; i++) {
+    add_address_bit((address >> (23 - i)) & 0x1);
+  }
+
+  delayMicroseconds(1);
+
+  return (
+    ((digitalRead(DQ0) == HIGH) ? 0x01 : 0) |
+    ((digitalRead(DQ1) == HIGH) ? 0x02 : 0) |
+    ((digitalRead(DQ2) == HIGH) ? 0x04 : 0) |
+    ((digitalRead(DQ3) == HIGH) ? 0x08 : 0) |
+    ((digitalRead(DQ4) == HIGH) ? 0x10 : 0) |
+    ((digitalRead(DQ5) == HIGH) ? 0x20 : 0) |
+    ((digitalRead(DQ6) == HIGH) ? 0x40 : 0) |
+    ((digitalRead(DQ7) == HIGH) ? 0x80 : 0)
+  );
+}
+
+void write_mode() {
+  pinMode(DQ0, INPUT);
+  pinMode(DQ1, INPUT);
+  pinMode(DQ2, INPUT);
+  pinMode(DQ3, INPUT);
+  pinMode(DQ4, INPUT);
+  pinMode(DQ5, INPUT);
+  pinMode(DQ6, INPUT);
+  pinMode(DQ7, INPUT);
+}
+
+unsigned char read_serial() {
   // Loop forever until we read a byte
   while(!Serial.available());
 
@@ -38,18 +99,18 @@ void send_continue() {
 
 void read_and_execute_command() {  
   // First, sync to any start of message
-  if(read_byte() != 'S') { return; }
-  if(read_byte() != 'R') { return; }
-  if(read_byte() != 'A') { return; }
-  if(read_byte() != 'M') { return; }
+  if(read_serial() != 'S') { return; }
+  if(read_serial() != 'R') { return; }
+  if(read_serial() != 'A') { return; }
+  if(read_serial() != 'M') { return; }
   
   // Now, grab the instruction
-  unsigned int instruction = read_byte();
+  unsigned int instruction = read_serial();
   
   if (instruction == 'R') {
     // Read a chunk of memory, specified by start and end address
-    unsigned long startaddr = ((long)read_byte() << 16) | ((long)read_byte() << 8) | (long)read_byte();
-    unsigned long endaddr = ((long)read_byte() << 16) | ((long)read_byte() << 8) | (long)read_byte();
+    unsigned long startaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
+    unsigned long endaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
     
     if (startaddr >= MEM_SIZE) {
       return_address_error("Starting", startaddr);
@@ -63,6 +124,9 @@ void read_and_execute_command() {
       return_general_error("Address bounds out of order!");
       return;
     }
+
+    // Put data lines into read mode
+    read_mode();
     
     // Valid command, send response along with data
     send_continue();
@@ -70,19 +134,19 @@ void read_and_execute_command() {
     int cont = 0;
     for (unsigned long addr = startaddr; addr < endaddr; addr++) {
       if (cont % 32 == 0) {
-        if(read_byte() != 'C') {
+        if(read_serial() != 'C') {
           return_general_error("Unexpected continuation from client!");
           return;
         }
-        if(read_byte() != 'O') {
+        if(read_serial() != 'O') {
           return_general_error("Unexpected continuation from client!");
           return;
         }
       }
       cont++;
       
-      // TODO: Read from chip
-      Serial.write(addr & 0xff);          
+      // Read from chip, output to PC.
+      Serial.write(read_sram(addr));
     }
     
     // Finished reading
@@ -92,8 +156,8 @@ void read_and_execute_command() {
   
   if (instruction == 'W') {
     // Write a chunk of memory, specified by start and end address
-    unsigned long startaddr = ((long)read_byte() << 16) | ((long)read_byte() << 8) | (long)read_byte();
-    unsigned long endaddr = ((long)read_byte() << 16) | ((long)read_byte() << 8) | (long)read_byte();
+    unsigned long startaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
+    unsigned long endaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
         
     if (startaddr >= MEM_SIZE) {
       return_address_error("Starting", startaddr);
@@ -108,6 +172,9 @@ void read_and_execute_command() {
       return;
     }
     
+    // Put data lines into write mode
+    write_mode();
+
     int cont = 0;
     for (unsigned long addr = startaddr; addr < endaddr; addr++) {
       // Flow control
@@ -117,7 +184,7 @@ void read_and_execute_command() {
       cont++;
       
       // TODO: Write to chip
-      unsigned char byteval = read_byte();
+      unsigned char byteval = read_serial();
     }
 
     // Finished writing!
@@ -139,21 +206,23 @@ void read_and_execute_command() {
 void setup() {
   // initialize serial:
   Serial.begin(230400);
-  pinMode(STATUS_LED, OUTPUT);     
+
+  // Initialize LED
+  pinMode(STATUS_LED, OUTPUT);
   
+  // Initialize address logic
+  pinMode(SERCLK, OUTPUT);
+  pinMode(SERDAT, OUTPUT);
+  digitalWrite(SERCLK, LOW);
+  digitalWrite(SERDAT, LOW);
 }
 
 void loop() {
-  digitalWrite(STATUS_LED, LOW);   // turn the LED on (HIGH is the voltage level)
-  delay(100);               // wait for a second
-  digitalWrite(STATUS_LED, HIGH);    // turn the LED off by making the voltage LOW
+  // Show some activity
+  digitalWrite(STATUS_LED, LOW);
+  delay(100);
+  digitalWrite(STATUS_LED, HIGH);
+
+  // Wait for command
   read_and_execute_command();
 }
-
-
-
-
-
-
-
-
