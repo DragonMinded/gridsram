@@ -119,7 +119,23 @@ class SRAMProtocol:
         while len(data) < length:
             self.__serial.write(b'CO')
             self.__serial.flush()
-            data = data + self.__serial.read(size=32)
+            data = data + self.__serial.read(size=min(32, length - len(data)))
 
         self.__check_return()
         return data
+
+    @staticmethod
+    def byteswap(data: bytes) -> bytes:
+        even = [d for d in data[::2]]
+        odd = [d for d in data[1::2]]
+        chunks = [bytes([odd[i], even[i]]) for i in range(len(even))]
+        return b''.join(chunks)
+
+    @staticmethod
+    def wordswap(data: bytes) -> bytes:
+        one = [d for d in data[::4]]
+        two = [d for d in data[1::4]]
+        three = [d for d in data[2::4]]
+        four = [d for d in data[3::4]]
+        chunks = [bytes([four[i], three[i], two[i], one[i]]) for i in range(len(one))]
+        return b''.join(chunks)
