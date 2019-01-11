@@ -51,13 +51,24 @@ class SRAMProtocol:
             error = error + val
 
     def __check_continue(self) -> None:
+        resp = b""
         while True:
-            resp = self.__serial.read(size=2)
+            resp += self.__serial.read(size=2)
+            if len(resp) < 2:
+                continue
             if resp == b'CO':
                 return
-            if resp != b'':
-                print(resp)
-                raise Exception('Unexpected return from Arduino!')
+            if resp == b'NG':
+                # Read error until we get null byte
+                error = b''
+                while True:
+                    val = self.__serial.read(size=1)
+                    if val == b'\00':
+                        raise Exception(error.decode('utf-8'))
+                    error = error + val
+
+            # Unrecognized input
+            raise Exception('Unexpected return from Arduino!')
 
     def write(self, address: int, data: bytes) -> None:
         start = address
