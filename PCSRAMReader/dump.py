@@ -41,5 +41,9 @@ if __name__ == "__main__":
         data = sp.read(args.offset, args.length)
         with open(args.file, 'wb') as fp:
             fp.write(data)
+    elif args.action == 'write':
+        with open(args.file, 'rb') as fp:
+            data = fp.read()
+        sp.write(args.offset, data)
     else:
         raise Exeption("Unrecognized action!")
