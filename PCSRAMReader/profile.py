@@ -25,7 +25,7 @@ class Profile:
 
     @property
     def valid(self) -> bool:
-        stored_checksum = struct.unpack(">I",profile.data[-4:])[0]
+        stored_checksum = struct.unpack(">I", profile.data[-4:])[0]
         if stored_checksum != self._calc_checksum():
             return False
         return self.data[0:5] != b"\xff\xff\xff\xff\xff"
@@ -50,7 +50,10 @@ class Profile:
             return ""
 
         vals = struct.unpack(">ssssssss", self.data[5:13])
-        namestr = vals[3] + vals[2] + vals[1] + vals[0] + vals[7] + vals[6] + vals[5] + vals[4]
+        namestr = (
+            vals[3] + vals[2] + vals[1] + vals[0] +
+            vals[7] + vals[6] + vals[5] + vals[4]
+        )
         return namestr.rstrip(b"\0").decode('ascii')
 
     @property

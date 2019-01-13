@@ -20,7 +20,8 @@ if __name__ == "__main__":
         metavar="PORT",
         type=str,
         default="/dev/ttyACM0",
-        help="Serial port of the helper Arduino. Defaults to default Arduino port.",
+        help="Serial port of the helper Arduino. Defaults " +
+             "to default Arduino port.",
     )
     parser.add_argument(
         "--offset",
@@ -46,4 +47,4 @@ if __name__ == "__main__":
             data = fp.read()
         sp.write(args.offset, data)
     else:
-        raise Exeption("Unrecognized action!")
+        raise Exception("Unrecognized action!")

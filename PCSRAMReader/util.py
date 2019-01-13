@@ -1,5 +1,6 @@
 import argparse
 
+
 class ByteUtil:
 
     @staticmethod
@@ -15,23 +16,32 @@ class ByteUtil:
         two = [d for d in data[1::4]]
         three = [d for d in data[2::4]]
         four = [d for d in data[3::4]]
-        chunks = [bytes([four[i], three[i], two[i], one[i]]) for i in range(len(one))]
+        chunks = [
+            bytes([four[i], three[i], two[i], one[i]])
+            for i in range(len(one))
+        ]
         return b''.join(chunks)
 
     @staticmethod
     def combine16bithalves(upper: bytes, lower: bytes) -> bytes:
-        chunks = [b''.join([upper[i:(i+2)], lower[i:(i+2)]]) for i in range(0, len(upper), 2)]
+        chunks = [
+            b''.join([upper[i:(i+2)], lower[i:(i+2)]])
+            for i in range(0, len(upper), 2)
+        ]
         return b''.join(chunks)
 
     @staticmethod
     def combine8bithalves(upper: bytes, lower: bytes) -> bytes:
-        chunks = [bytes(upper[i], lower[i]) for i in range(len(upper))]
+        chunks = [bytes([upper[i], lower[i]]) for i in range(len(upper))]
         return b''.join(chunks)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("ROM manipulation utilities.")
-    subparsers = parser.add_subparsers(dest="action", help="Action to perform.")
+    subparsers = parser.add_subparsers(
+        dest="action",
+        help="Action to perform.",
+    )
 
     combine16 = subparsers.add_parser(
         "combine16",

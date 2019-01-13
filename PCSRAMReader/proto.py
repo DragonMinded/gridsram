@@ -1,6 +1,7 @@
 import serial
 import struct
 
+
 class SRAMProtocol:
     def __init__(self, port: str) -> None:
         ser = serial.Serial(
@@ -101,7 +102,7 @@ class SRAMProtocol:
 
         self.__check_return()
 
-    def read(self, address: int, length: int) -> None:
+    def read(self, address: int, length: int) -> bytes:
         start = address
         end = address + length
 
