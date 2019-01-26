@@ -25,7 +25,7 @@ class Profile:
 
     @property
     def valid(self) -> bool:
-        stored_checksum = struct.unpack(">I", profile.data[-4:])[0]
+        stored_checksum = struct.unpack(">I", self.data[-4:])[0]
         if stored_checksum != self._calc_checksum():
             return False
         return self.data[0:5] != b"\xff\xff\xff\xff\xff"
@@ -83,15 +83,21 @@ class Profile:
 
 if __name__ == "__main__":
     with open(sys.argv[1], "rb") as fp:
-        chunk = fp.read()
+        data = fp.read()
 
-    spot = int(sys.argv[2])
-    profile = Profile(chunk[(86 * spot):][:86])
-    if profile.valid:
-        print("Pin code", profile.pin)
-        print("Name", profile.name)
-        print("Call Sign", profile.callsign)
-        print("High Score", profile.highscore)
-        print("Profile Age", profile.age)
-    else:
-        print("Invalid profile")
+    def read_profile(chunk, spot, *, print_failures) -> None:
+        profile = Profile(chunk[(86 * spot):][:86])
+        if profile.valid:
+            print("Pin code", profile.pin)
+            print("Name", profile.name)
+            print("Call Sign", profile.callsign)
+            print("High Score", profile.highscore)
+            print("Profile Age", profile.age)
+        elif print_failures:
+            print("Invalid profile")
+
+    try:
+        read_profile(data, int(sys.argv[2]), print_failures=True)
+    except IndexError:
+        for spot in range(0, 1524):
+            read_profile(data, spot, print_failures=False)
