@@ -25,26 +25,34 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--offset",
-        type=int,
-        default=0,
+        type=str,
+        default="0",
         help="Offset address, defaults to beginning of chip.",
     )
     parser.add_argument(
         "--length",
-        type=int,
-        default=0x20000,
-        help="Length of action, defaults to size of chip.",
+        type=str,
+        default="0x20000",
+        help="Length of read action, defaults to size of chip.",
     )
     args = parser.parse_args()
+    if args.offset[:2] == "0x":
+        offset = int(args.offset[2:], 16)
+    else:
+        offset = int(args.offset)
+    if args.length[:2] == "0x":
+        length = int(args.length[2:], 16)
+    else:
+        length = int(args.length)
 
     sp = SRAMProtocol(args.port)
     if args.action == 'read':
-        data = sp.read(args.offset, args.length)
+        data = sp.read(offset, length)
         with open(args.file, 'wb') as fp:
             fp.write(data)
     elif args.action == 'write':
         with open(args.file, 'rb') as fp:
             data = fp.read()
-        sp.write(args.offset, data)
+        sp.write(offset, data)
     else:
         raise Exception("Unrecognized action!")
