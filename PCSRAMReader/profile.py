@@ -114,19 +114,36 @@ class Profile:
         return str((voicehigh << 8) | voicelow)
 
     @property
-    def highscore(self) -> int:
-        if not self.valid:
-            return 0
-
-        return struct.unpack(">B", self.data[15:16])[0]
-
-    @property
     def age(self) -> int:
         if not self.valid:
             return 0
 
         # TODO: This is the wrong offset
         return struct.unpack(">I", self.data[16:20])[0]
+
+    @property
+    def highscore(self) -> int:
+        if not self.valid:
+            return 0
+
+        return struct.unpack(">B", self.data[14:15])[0]
+
+    @highscore.setter
+    def highscore(self, score: int) -> None:
+        self.data = self.data[:14] + struct.pack(">B", score) + self.data[15:]
+        self._update_checksum()
+
+    @property
+    def streak(self) -> int:
+        if not self.valid:
+            return 0
+
+        return struct.unpack(">B", self.data[37:38])[0]
+
+    @streak.setter
+    def streak(self, streak: int) -> None:
+        self.data = self.data[:37] + struct.pack(">B", streak) + self.data[38:]
+        self._update_checksum()
 
     @property
     def totalpoints(self) -> int:
@@ -152,15 +169,28 @@ class Profile:
         self.data = self.data[:26] + struct.pack(">I", cash) + self.data[30:]
         self._update_checksum()
 
+    @property
+    def totalplays(self) -> int:
+        if not self.valid:
+            return 0
+
+        return struct.unpack(">H", self.data[32:34])[0]
+
+    @totalplays.setter
+    def totalplays(self, plays: int) -> None:
+        self.data = self.data[:32] + struct.pack(">H", plays) + self.data[34:]
+        self._update_checksum()
+
 
 def print_profile(profile: Profile, *, print_failures) -> None:
     if profile.valid:
         print("Pin code", profile.pin)
         print("Name", profile.name)
         print("Call Sign", profile.callsign)
-        print("High Score", profile.highscore)
-        print("Profile Age", profile.age)
+        print("Games Played", profile.totalplays)
         print("Total Points", profile.totalpoints)
+        print("Longest Streak", profile.streak)
+        print("High Score", profile.highscore)
         print("Total Cash", profile.totalcash)
     elif print_failures:
         print("Invalid profile")
