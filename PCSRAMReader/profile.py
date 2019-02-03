@@ -1,5 +1,4 @@
 import struct
-import sys
 
 
 class ProfileException(Exception):
@@ -7,7 +6,6 @@ class ProfileException(Exception):
 
 
 class Profile:
-
     def __init__(self, data: bytes) -> None:
         if len(data) != 86:
             raise Exception("Invalid profile length!")
@@ -30,6 +28,10 @@ class Profile:
     def _update_checksum(self) -> None:
         new_checksum = self._calc_checksum()
         self.data = self.data[:-4] + struct.pack(">I", new_checksum)
+
+    @classmethod
+    def create(cls) -> "Profile":
+        return Profile(b"\xff" * 5 + b"\x00" * 81)
 
     @property
     def valid(self) -> bool:
@@ -181,32 +183,75 @@ class Profile:
         self.data = self.data[:32] + struct.pack(">H", plays) + self.data[34:]
         self._update_checksum()
 
+    def __str__(self) -> str:
+        if not self.valid:
+            raise ProfileException("Cannot render invalid profile!")
 
-def print_profile(profile: Profile, *, print_failures) -> None:
-    if profile.valid:
-        print("Pin code", profile.pin)
-        print("Name", profile.name)
-        print("Call Sign", profile.callsign)
-        print("Games Played", profile.totalplays)
-        print("Total Points", profile.totalpoints)
-        print("Longest Streak", profile.streak)
-        print("High Score", profile.highscore)
-        print("Total Cash", profile.totalcash)
-    elif print_failures:
-        print("Invalid profile")
+        def line(title: str, content: object) -> str:
+            return title + ": " + str(content)
+
+        return "\n".join([
+            line("Name", self.name),
+            line("Pin Code", self.pin),
+            line("Call Sign", self.callsign),
+            line("Games Played", self.totalplays),
+            line("Total Points", self.totalpoints),
+            line("Longest Streak", self.streak),
+            line("High Score", self.highscore),
+            line("Total Cash", self.totalcash),
+        ])
 
 
-def read_profile(chunk, spot, *, print_failures) -> None:
-    profile = Profile(chunk[(86 * spot):][:86])
-    print_profile(profile, print_failures=print_failures)
+class ProfileCollection:
+    def __init__(self, data: bytes, *, is_mame_format: bool = False) -> None:
+        if is_mame_format:
+            # Mame stores the SRAM for The Grid as 32-bit integers for each
+            # 8-bit value in the SRAM. This is because the game maps the chip
+            # to a 32-bit address with the top 24 bits zero'd out. So,
+            # compensate for this.
+            data = data[::4]
+        if len(data) != 131072:
+            raise ProfileException("Invalid profile chunk!")
 
+        # Save this for serialization
+        self._mame_compat = is_mame_format
 
-if __name__ == "__main__":
-    with open(sys.argv[1], "rb") as fp:
-        data = fp.read()
+        def read_profile(chunk: bytes, spot: int) -> Profile:
+            return Profile(chunk[(86 * spot):][:86])
 
-    try:
-        read_profile(data, int(sys.argv[2]), print_failures=True)
-    except IndexError:
-        for spot in range(0, 1524):
-            read_profile(data, spot, print_failures=False)
+        self._profiles = [read_profile(data, spot) for spot in range(0, 1524)]
+
+    @property
+    def data(self) -> bytes:
+        data = b"".join(p.data for p in self._profiles)
+        while len(data) < 131072:
+            data = data + b"\x00"
+
+        if self._mame_compat:
+            # We need to convert back to make broken style here
+            data = b"".join(bytes([b, 0, 0, 0]) for b in data)
+
+        return data
+
+    def __len__(self) -> int:
+        return len(self._profiles)
+
+    def __getitem__(self, key: int) -> Profile:
+        return self._profiles[key]
+
+    def __setitem__(self, key: int, value: object) -> None:
+        if not isinstance(value, Profile):
+            raise ProfileException(
+                "Cannot assign non-Profile to ProfileCollection entry!"
+            )
+        self._profiles[key] = value
+
+    def __delitem__(self, key: int) -> None:
+        # Map this to erasing a profile
+        self._profiles[key] = Profile.create()
+
+    def __iter__(self):
+        return iter(self._profiles)
+
+    def __reversed__(self):
+        return reversed(self._profiles)
