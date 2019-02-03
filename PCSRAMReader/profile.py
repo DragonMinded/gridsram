@@ -308,13 +308,15 @@ class ProfileCollection:
         def read_profile(chunk: bytes, spot: int) -> Profile:
             return Profile(chunk[(86 * spot):][:86])
 
-        self._profiles = [read_profile(data, spot) for spot in range(0, 1524)]
+        self._profiles = [read_profile(data, spot) for spot in range(0, 1500)]
+        self._extra = data[(1500 * 86):]
 
     @property
     def data(self) -> bytes:
         data = b"".join(p.data for p in self._profiles)
-        while len(data) < 131072:
-            data = data + b"\x00"
+        data = data + self._extra
+        if len(data) != 131072:
+            raise Exception("Logic error, shouldn't be possible!")
 
         if self._mame_compat:
             # We need to convert back to make broken style here
