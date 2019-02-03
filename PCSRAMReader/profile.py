@@ -1,4 +1,5 @@
 import struct
+from typing import Tuple
 
 
 class ProfileException(Exception):
@@ -35,9 +36,16 @@ class Profile:
 
     @property
     def valid(self) -> bool:
+        # First, validate checksum
         stored_checksum = struct.unpack(">I", self.data[-4:])[0]
         if stored_checksum != self._calc_checksum():
             return False
+
+        # Next, verify the data version
+        if self.data[31] != 0x01:
+            return False
+
+        # Finally, return as long as we aren't setting the pin to unused
         return self.data[0:5] != b"\xff\xff\xff\xff\xff"
 
     @property
@@ -82,8 +90,11 @@ class Profile:
 
     @name.setter
     def name(self, newname: str) -> None:
-        if len(newname) < 1 or len(newname) > 8:
+        if len(newname) < 1 or len(newname) > 7:
             raise ProfileException("Invalid name length!")
+        for char in newname:
+            if char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ ":
+                raise ProfileException("Invalid name character!")
         namebytes = newname.encode('ascii')
         while len(namebytes) < 8:
             namebytes = namebytes + b"\0"
@@ -109,19 +120,30 @@ class Profile:
         if not self.valid:
             return ""
 
-        # TODO: This might not be the correct offset
-        voicelow, voicehigh = struct.unpack(">BB", self.data[13:15])
+        # TODO: Missing top half of the offset, but it might be fine
+        # if the game doesn't have > 256 voices.
+        voicelow = struct.unpack(">B", self.data[13:14])[0]
+        voicehigh = 0
 
         # TODO: LUT for this
         return str((voicehigh << 8) | voicelow)
+
+    @callsign.setter
+    def callsign(self, callsign: int) -> None:
+        self.data = (
+            self.data[:13] +
+            struct.pack(">B", callsign) +
+            self.data[14:]
+        )
+        self._update_checksum()
 
     @property
     def age(self) -> int:
         if not self.valid:
             return 0
 
-        # TODO: This is the wrong offset
-        return struct.unpack(">I", self.data[16:20])[0]
+        # No setter for this, it doesn't make sense.
+        return struct.unpack(">I", self.data[15:19])[0]
 
     @property
     def highscore(self) -> int:
@@ -195,6 +217,32 @@ class Profile:
         self.data = self.data[:32] + struct.pack(">H", plays) + self.data[34:]
         self._update_checksum()
 
+    @property
+    def towerposition(self) -> Tuple[int, int]:
+        if not self.valid:
+            return (1, 1)
+
+        posbyte = struct.unpack(">B", self.data[34:35])[0]
+        tower = ((posbyte >> 4) & 0xF) + 1
+        level = (posbyte & 0xF) + 1
+        return (tower, level)
+
+    @towerposition.setter
+    def towerposition(self, towerposition: Tuple[int, int]) -> None:
+        tower, level = towerposition
+        if level < 1 or level > 6:
+            raise ProfileException("Invalid level value")
+        if tower < 1 or tower > 6:
+            # I think this is the upper bound?
+            raise ProfileException("Invalid tower value")
+        posbyte = (((tower - 1) & 0xF) << 4) | ((level - 1) & 0xF)
+        self.data = (
+            self.data[:34] +
+            struct.pack(">B", posbyte) +
+            self.data[35:]
+        )
+        self._update_checksum()
+
     def __str__(self) -> str:
         if not self.valid:
             raise ProfileException("Cannot render invalid profile!")
@@ -209,17 +257,27 @@ class Profile:
                 cashstr = cashstr[:-3] + "," + cashstr[-3:]
             return cashstr
 
+        def format_tower(position: Tuple[int, int]) -> str:
+            tower, level = position
+            return "Tower " + str(tower) + ", Level " + str(level)
+
         return "\n".join([
             line("Name", self.name),
             line("Pin Code", self.pin),
             line("Call Sign", self.callsign),
+            line("Age", self.age),
             line("Games Won", self.totalwins),
             line("Games Played", self.totalplays),
-            line("Win Percentage", str(int((self.totalwins * 100) / self.totalplays)) + '%'),
+            line(
+                "Win Percentage",
+                str(int((self.totalwins * 100) / self.totalplays)) + '%'
+                if self.totalplays > 0 else '0%'
+            ),
             line("Total Points", self.totalpoints),
             line("Longest Streak", self.streak),
             line("High Score", self.highscore),
             line("Total Cash", format_cash(self.totalcash)),
+            line("Tower Progress", format_tower(self.towerposition))
         ])
 
 
