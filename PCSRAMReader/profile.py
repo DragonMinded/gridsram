@@ -12,6 +12,16 @@ class Profile:
             raise Exception("Invalid profile length!")
         self.data = data
 
+        # There's a couple fields missing here, but it looks like in
+        # practice they are always 0x00 so it doesn't matter particularly
+        # much. The top byte for voice calls is missing, but as detailed
+        # below, it might not matter. The 'in use' flag is also somewhere
+        # but the game does not use it any longer, so its always set to 0x00.
+        # Similar thing goes for control mod and towers complete (looks
+        # to be redundant with tower position). Each of these missing fields
+        # is 1 byte, and there are 4 holes unaccounted for in the data, so
+        # these values go to offsets 23, 30, 35 and 36 (not respectively).
+
     def _calc_checksum(self) -> int:
         rotatebit = 1
         checksum = 0
