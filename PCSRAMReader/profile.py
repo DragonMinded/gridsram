@@ -42,7 +42,7 @@ class Profile:
 
     @classmethod
     def create(cls) -> "Profile":
-        return Profile(b"\xff" * 5 + b"\x00" * 81)
+        return Profile(b"\xff" * 5 + b"\x00" * 26 + b"\x01" +b"\x00" * 54)
 
     @property
     def valid(self) -> bool:
