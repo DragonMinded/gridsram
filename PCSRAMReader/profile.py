@@ -172,6 +172,18 @@ class Profile:
         self._update_checksum()
 
     @property
+    def totalwins(self) -> int:
+        if not self.valid:
+            return 0
+
+        return struct.unpack(">H", self.data[24:26])[0]
+
+    @totalwins.setter
+    def totalwins(self, wins: int) -> None:
+        self.data = self.data[:24] + struct.pack(">H", wins) + self.data[26:]
+        self._update_checksum()
+
+    @property
     def totalplays(self) -> int:
         if not self.valid:
             return 0
@@ -190,15 +202,24 @@ class Profile:
         def line(title: str, content: object) -> str:
             return title + ": " + str(content)
 
+        def format_cash(cash: int) -> str:
+            cashstr = '$' + str(cash)
+            if cash >= 1000:
+                # At least 1000 dollars, lets put a comma
+                cashstr = cashstr[:-3] + "," + cashstr[-3:]
+            return cashstr
+
         return "\n".join([
             line("Name", self.name),
             line("Pin Code", self.pin),
             line("Call Sign", self.callsign),
+            line("Games Won", self.totalwins),
             line("Games Played", self.totalplays),
+            line("Win Percentage", str(int((self.totalwins * 100) / self.totalplays)) + '%'),
             line("Total Points", self.totalpoints),
             line("Longest Streak", self.streak),
             line("High Score", self.highscore),
-            line("Total Cash", self.totalcash),
+            line("Total Cash", format_cash(self.totalcash)),
         ])
 
 
