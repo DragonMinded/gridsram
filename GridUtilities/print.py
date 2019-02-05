@@ -10,12 +10,14 @@ def print_profile(profile: Profile) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Print utility to display SRAM contents.")
+    parser = argparse.ArgumentParser(
+        "Print utility to display The Grid SRAM profiles.",
+    )
     parser.add_argument(
         'file',
         metavar="FILE",
         type=str,
-        help="File to parse.",
+        help="SRAM file to parse and print.",
     )
     parser.add_argument(
         "--offset",
