@@ -12,15 +12,12 @@ class Profile:
             raise Exception("Invalid profile length!")
         self.data = data
 
-        # There's a couple fields missing here, but it looks like in
-        # practice they are always 0x00 so it doesn't matter particularly
-        # much. The top byte for voice calls is missing, but as detailed
-        # below, it might not matter. The 'in use' flag is also somewhere
-        # but the game does not use it any longer, so its always set to 0x00.
-        # Similar thing goes for control mod and towers complete (looks
-        # to be redundant with tower position). Each of these missing fields
-        # is 1 byte, and there are 4 holes unaccounted for in the data, so
-        # these values go to offsets 23, 30, 35 and 36 (not respectively).
+        # There is a single byte in position 23 that the game always writes
+        # a 0 to. This used to be a profile 'in use' flag but the game no
+        # longer makes use of it. Also, there are 44 bytes of zeros between
+        # the last valid byte in the profile and the checksum, which the game
+        # does not touch when reading/writing profiles. These are not mapped
+        # to any properties below.
 
     def _calc_checksum(self) -> int:
         rotatebit = 1
@@ -37,12 +34,14 @@ class Profile:
         return checksum
 
     def _update_checksum(self) -> None:
+        if len(self.data) != 86:
+            raise Exception("Logic error! Somehow changed the data length!")
         new_checksum = self._calc_checksum()
         self.data = self.data[:-4] + struct.pack(">I", new_checksum)
 
-    @classmethod
-    def create(cls) -> "Profile":
-        return Profile(b"\xff" * 5 + b"\x00" * 26 + b"\x01" +b"\x00" * 54)
+    def clear(self) -> None:
+        self.data = b"\xff" * 5 + b"\x00" * 26 + b"\x01" + b"\x00" * 54
+        self._update_checksum()
 
     @property
     def valid(self) -> bool:
@@ -130,10 +129,8 @@ class Profile:
         if not self.valid:
             return ""
 
-        # TODO: Missing top half of the offset, but it might be fine
-        # if the game doesn't have > 256 voices.
         voicelow = struct.unpack(">B", self.data[13:14])[0]
-        voicehigh = 0
+        voicehigh = struct.unpack(">B", self.data[36:37])[0]
 
         # TODO: LUT for this
         return str((voicehigh << 8) | voicelow)
@@ -142,8 +139,10 @@ class Profile:
     def callsign(self, callsign: int) -> None:
         self.data = (
             self.data[:13] +
-            struct.pack(">B", callsign) +
-            self.data[14:]
+            struct.pack(">B", callsign & 0xFF) +
+            self.data[14:36] +
+            struct.pack(">B", (callsign >> 8) & 0xFF) +
+            self.data[37:]
         )
         self._update_checksum()
 
@@ -253,6 +252,60 @@ class Profile:
         )
         self._update_checksum()
 
+    @property
+    def towerclears(self) -> int:
+        if not self.valid:
+            return 0
+
+        return struct.unpack(">B", self.data[35:36])[0]
+
+    @towerclears.setter
+    def towerclears(self, clears: int) -> None:
+        self.data = self.data[:35] + struct.pack(">B", clears) + self.data[36:]
+        self._update_checksum()
+
+    def _get_control_settings(self) -> int:
+        if not self.valid:
+            return 0
+
+        return struct.unpack(">B", self.data[30:31])[0]
+
+    def _set_control_settings(self, settings: int) -> None:
+        self.data = (
+            self.data[:30] +
+            struct.pack(">B", settings) +
+            self.data[31:]
+        )
+        self._update_checksum()
+
+    @property
+    def freelook(self) -> bool:
+        return (self._get_control_settings() & 0x02) != 0
+
+    @freelook.setter
+    def freelook(self, enabled: bool) -> None:
+        if enabled:
+            # Make sure to enable it
+            self._set_control_settings(self._get_control_settings() | 0x02)
+        else:
+            # Reverse aim requires free look
+            self._set_control_settings(0x00)
+
+    @property
+    def invertaim(self) -> bool:
+        return self.freelook and ((self._get_control_settings() & 0x01) != 0)
+
+    @invertaim.setter
+    def invertaim(self, enabled: bool) -> None:
+        if self.freelook:
+            # Only apply if free look is enabled
+            if enabled:
+                # Make sure to enable it
+                self._set_control_settings(self._get_control_settings() | 0x01)
+            else:
+                # Disable it!
+                self._set_control_settings(self._get_control_settings() & 0xFE)
+
     def __str__(self) -> str:
         if not self.valid:
             raise ProfileException("Cannot render invalid profile!")
@@ -271,6 +324,15 @@ class Profile:
             tower, level = position
             return "Tower " + str(tower) + ", Level " + str(level)
 
+        def format_controls(freelook: bool, invertaim: bool) -> str:
+            if freelook:
+                if invertaim:
+                    return "free look + inverted"
+                else:
+                    return "free look"
+            else:
+                return "assist"
+
         return "\n".join([
             line("Name", self.name),
             line("Pin Code", self.pin),
@@ -281,13 +343,18 @@ class Profile:
             line(
                 "Win Percentage",
                 str(int((self.totalwins * 100) / self.totalplays)) + '%'
-                if self.totalplays > 0 else '0%'
+                if self.totalplays > 0 else '0%',
             ),
             line("Total Points", self.totalpoints),
             line("Longest Streak", self.streak),
             line("High Score", self.highscore),
             line("Total Cash", format_cash(self.totalcash)),
-            line("Tower Progress", format_tower(self.towerposition))
+            line("Tower Progress", format_tower(self.towerposition)),
+            line("Tower Clears", self.towerclears),
+            line(
+                "Control Mode",
+                format_controls(self.freelook, self.invertaim),
+            )
         ])
 
 
@@ -339,7 +406,7 @@ class ProfileCollection:
 
     def __delitem__(self, key: int) -> None:
         # Map this to erasing a profile
-        self._profiles[key] = Profile.create()
+        self._profiles[key].clear()
 
     def __iter__(self):
         return iter(self._profiles)
