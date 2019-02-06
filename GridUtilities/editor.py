@@ -102,6 +102,9 @@ class ProfileListComponent(Component):
         self.changed = False
 
     def _render_list(self, context: RenderContext) -> None:
+        # No artifacts, please!
+        context.clear()
+
         # TODO: Handle window positioning here
 
         top = self.window
@@ -118,6 +121,9 @@ class ProfileListComponent(Component):
             context.draw_string(i - top, 0, display, invert=(i == self.cursor))
 
     def _render_panel(self, context: RenderContext) -> None:
+        # No artifacts, please!
+        context.clear()
+
         profile = self._current_profile()
         with context.clip(
             BoundingRectangle(
@@ -145,7 +151,7 @@ class ProfileListComponent(Component):
                     self.cursor += 1
                     self.changed = True
                 return True
-            if event.character == "d":
+            if event.character in ["d", Keys.DELETE]:
                 if self.cursor > -1:
                     self._current_profile().clear()
                     if self._valid_profiles() == 0:
@@ -161,6 +167,9 @@ class ProfileListComponent(Component):
                     self.cursor = newcursor
                     self.changed = True
         return False
+
+    def __repr__(self) -> str:
+        return "ProfileListComponent()"
 
 
 class ListProfilesScene(Scene):
