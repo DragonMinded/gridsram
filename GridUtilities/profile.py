@@ -34,6 +34,9 @@ class Profile:
         return checksum
 
     def _update_checksum(self) -> None:
+        # Ensure data bit is set properly. If we edit an empty profile that
+        # came from a reset chip this can be cleared.
+        self.data = self.data[:31] + b"\x01" + self.data[32:]
         if len(self.data) != 86:
             raise Exception("Logic error! Somehow changed the data length!")
         new_checksum = self._calc_checksum()

@@ -384,6 +384,8 @@ class EditProfileComponent(Component):
                     self.profile.towerclears = int(
                         self.__inputs[self.TOWERCLEARS].text
                     )
+                    if not self.profile.valid:
+                        raise Exception("Logic error, profile must be valid on save!")
                     self.scene.unregister_component(self)
                 return True
             if event.character == Keys.ESCAPE:
@@ -435,6 +437,14 @@ class ProfileListComponent(Component):
             if profile.valid:
                 cnt += 1
         return cnt
+
+    def _new_profile(self) -> Profile:
+        for profile in self.profiles:
+            if not profile.valid:
+                return profile
+        raise Exception(
+            "Could not find a spot to add a new profile!"
+        )
 
     def _current_profile(self) -> Profile:
         return self._profile_at(self.cursor)
@@ -556,6 +566,10 @@ class ProfileListComponent(Component):
                         EditProfileComponent(self._current_profile())
                     )
                 return True
+            if event.character == "a":
+                self.scene.register_component(
+                    EditProfileComponent(self._new_profile())
+                )
         if isinstance(event, MouseInputEvent):
             if event.button == Buttons.LEFT:
                 newcursor = (event.y - self.window) - 1
