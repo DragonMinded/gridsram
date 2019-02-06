@@ -102,7 +102,7 @@ class Profile:
         if len(newname) < 1 or len(newname) > 7:
             raise ProfileException("Invalid name length!")
         for char in newname:
-            if char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ ":
+            if char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ":
                 raise ProfileException("Invalid name character!")
         namebytes = newname.encode('ascii')
         while len(namebytes) < 8:
@@ -136,12 +136,12 @@ class Profile:
         return str((voicehigh << 8) | voicelow)
 
     @callsign.setter
-    def callsign(self, callsign: int) -> None:
+    def callsign(self, callsign: str) -> None:
         self.data = (
             self.data[:13] +
-            struct.pack(">B", callsign & 0xFF) +
+            struct.pack(">B", int(callsign) & 0xFF) +
             self.data[14:36] +
-            struct.pack(">B", (callsign >> 8) & 0xFF) +
+            struct.pack(">B", (int(callsign) >> 8) & 0xFF) +
             self.data[37:]
         )
         self._update_checksum()
@@ -241,8 +241,7 @@ class Profile:
         tower, level = towerposition
         if level < 1 or level > 6:
             raise ProfileException("Invalid level value")
-        if tower < 1 or tower > 6:
-            # I think this is the upper bound?
+        if tower < 1 or tower > 9:
             raise ProfileException("Invalid tower value")
         posbyte = (((tower - 1) & 0xF) << 4) | ((level - 1) & 0xF)
         self.data = (
