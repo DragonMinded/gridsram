@@ -14,7 +14,13 @@ from dragoncurses.component import (
 from dragoncurses.context import RenderContext, BoundingRectangle
 from dragoncurses.scene import Scene
 from dragoncurses.loop import MainLoop, loop_config
-from dragoncurses.input import InputEvent, KeyboardInputEvent, Keys
+from dragoncurses.input import (
+    InputEvent,
+    KeyboardInputEvent,
+    MouseInputEvent,
+    Buttons,
+    Keys,
+)
 from dragoncurses.settings import Settings
 from profile import Profile, ProfileCollection
 
@@ -148,6 +154,12 @@ class ProfileListComponent(Component):
                         self.cursor -= 1
                     self.changed = True
                 return True
+        if isinstance(event, MouseInputEvent):
+            if event.button == Buttons.LEFT:
+                newcursor = (event.y - self.window) - 1
+                if newcursor >= 0 and newcursor < self._valid_profiles():
+                    self.cursor = newcursor
+                    self.changed = True
         return False
 
 
