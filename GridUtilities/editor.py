@@ -688,12 +688,6 @@ class ListProfilesScene(Scene):
         return False
 
 
-def idle(mainloop: MainLoop) -> None:
-    # My curses library turns out to spin-loop and I am not in the mood to
-    # fix it ATM.
-    time.sleep(0.005)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="A text-based profile editor for The Grid."
@@ -724,7 +718,6 @@ def main() -> int:
             loop = MainLoop(
                 context,
                 {'file': args.file, 'profiles': profiles},
-                idle,
             )
             loop.change_scene(ListProfilesScene)
             loop.run()
