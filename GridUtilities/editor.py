@@ -15,6 +15,7 @@ from dragoncurses.component import (
     PaddingComponent,
     ListComponent,
     ClickableComponent,
+    SelectInputComponent,
 )
 from dragoncurses.context import RenderContext, BoundingRectangle, Color
 from dragoncurses.scene import Scene
@@ -40,6 +41,11 @@ class ClickableTextInputComponent(ClickableComponent, TextInputComponent):
         )
 
 
+class ClickableSelectInputComponent(ClickableComponent, SelectInputComponent):
+    def __repr__(self) -> str:
+        return "ClickableSelectInputComponent(selected={}, options={}, focused={})".format(repr(self.selected), repr(self.options), "True" if self.focus else "False")
+
+
 class EditProfileComponent(Component):
 
     NAME = 0
@@ -53,11 +59,21 @@ class EditProfileComponent(Component):
     TOTALCASH = 8
     TOWERPOSITION = 9
     TOWERCLEARS = 10
+    CONTROLMODE = 11
 
     def __init__(self, profile: Profile, *, padding: int = 5) -> None:
         super().__init__()
         self.profile = profile
         self.__padding = padding
+
+        def get_control_mode() -> str:
+            if profile.freelook:
+                if profile.invertaim:
+                    return "free + inverted"
+                else:
+                    return "free look"
+            else:
+                return "assist"
 
         # Set up inputs
         self.__inputs = [
@@ -128,6 +144,11 @@ class EditProfileComponent(Component):
                 allowed_characters="0123456789",
                 focused=False,
             ).on_click(self.__click_select),
+            ClickableSelectInputComponent(
+                get_control_mode(),
+                ["assist", "free look", "free + inverted"],
+                focused=False,
+            ).on_click(self.__click_select),
         ]
         self.__errors = [LabelComponent("", textcolor=Color.RED) for _ in self.__inputs]
         self.__validators = [
@@ -142,6 +163,7 @@ class EditProfileComponent(Component):
             self.__validate_totalcash,
             self.__validate_towerposition,
             self.__validate_towerclears,
+            self.__validate_controlmode,
         ]
         # Run initial validation (we might have a new/blank profile)
         self.__validate()
@@ -170,6 +192,7 @@ class EditProfileComponent(Component):
                                     LabelComponent("Total Cash"),
                                     LabelComponent("Tower Progress"),
                                     LabelComponent("Tower Clears"),
+                                    LabelComponent("Control Mode"),
                                 ],
                                 direction=ListComponent.DIRECTION_TOP_TO_BOTTOM,
                                 size=2,
@@ -186,7 +209,7 @@ class EditProfileComponent(Component):
                                     size=2,
                                 ),
                                 location=StickyComponent.LOCATION_LEFT,
-                                size=11,
+                                size=20,
                             ),
                             location=StickyComponent.LOCATION_LEFT,
                             size=20,
@@ -344,10 +367,17 @@ class EditProfileComponent(Component):
             return "Must be at most 255!"
         return None
 
-    def __click_select(self, component: Component, button: str) -> None:
+    def __validate_controlmode(self) -> Optional[str]:
+        # Can't be invalid, its a select
+        return None
+
+    def __click_select(self, component: Component, button: str) -> bool:
         if button == Buttons.LEFT:
             for inp in self.__inputs:
                 inp.focus = inp is component
+        # Allow this input to continue propagating, so we can focus on and also click
+        # the select option dialog.
+        return False
 
     def handle_input(self, event: "InputEvent") -> bool:
         if isinstance(event, KeyboardInputEvent):
@@ -384,6 +414,17 @@ class EditProfileComponent(Component):
                     self.profile.towerclears = int(
                         self.__inputs[self.TOWERCLEARS].text
                     )
+                    if self.__inputs[self.CONTROLMODE].selected == "assist":
+                        self.profile.freelook = False
+                        self.profile.invertaim = False
+                    elif self.__inputs[self.CONTROLMODE].selected == "free look":
+                        self.profile.freelook = True
+                        self.profile.invertaim = False
+                    elif self.__inputs[self.CONTROLMODE].selected == "free + inverted":
+                        self.profile.freelook = True
+                        self.profile.invertaim = True
+                    else:
+                        raise Exception("Logic error, unrecognized option!")
                     if not self.profile.valid:
                         raise Exception("Logic error, profile must be valid on save!")
                     self.scene.unregister_component(self)
@@ -572,10 +613,20 @@ class ProfileListComponent(Component):
                 )
         if isinstance(event, MouseInputEvent):
             if event.button == Buttons.LEFT:
-                newcursor = (event.y - self.window) - 1
-                if newcursor >= 0 and newcursor < self._valid_profiles():
-                    self.cursor = newcursor
-                    self.changed = True
+                xposition = event.x - self.location.left
+                if (
+                    self.location.width > self.PANEL_SIZE and
+                    self._valid_profiles() > 0
+                ):
+                    xmax = self.location.width - self.PANEL_SIZE
+                else:
+                    xmax = self.location.width
+
+                if xposition < xmax:
+                    newcursor = (event.y - self.window) - self.location.top
+                    if newcursor >= 0 and newcursor < self._valid_profiles():
+                        self.cursor = newcursor
+                        self.changed = True
         return False
 
     def __repr__(self) -> str:
