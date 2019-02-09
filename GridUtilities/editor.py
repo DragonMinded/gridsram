@@ -25,7 +25,9 @@ from dragoncurses.input import (
     InputEvent,
     KeyboardInputEvent,
     MouseInputEvent,
+    ScrollInputEvent,
     Buttons,
+    Directions,
     Keys,
 )
 from dragoncurses.settings import Settings
@@ -718,6 +720,21 @@ class ProfileListComponent(Component):
                                 ],
                             )
                             self.register(menu, menu.bounds.offset(event.y - self.location.top, event.x - self.location.left))
+                return True
+        if isinstance(event, ScrollInputEvent):
+            if event.direction == Directions.UP:
+                if self.cursor > 0:
+                    self.cursor -= 3
+                    if self.cursor < 0:
+                        self.cursor = 0
+                    self.changed = True
+                return True
+            if event.direction == Directions.DOWN:
+                if self.cursor < (self._valid_profiles() - 1):
+                    self.cursor += 3
+                    if self.cursor > (self._valid_profiles() - 1):
+                        self.cursor = self._valid_profiles() - 1
+                    self.changed = True
                 return True
 
         return False
