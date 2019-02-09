@@ -573,7 +573,16 @@ class ProfileListComponent(Component):
         # No artifacts, please!
         context.clear()
 
-        # TODO: Handle window positioning here
+        # Handle scrolling up with some buffer.
+        if (self.cursor - 4) < self.window:
+            self.window = self.cursor - 4
+            if self.window < 0:
+                self.window = 0
+        # Handle scrolling down with some buffer.
+        if (self.cursor + 5) > (self.window + context.bounds.height):
+            self.window = (self.cursor + 5) - context.bounds.height
+            if self.window > (self._valid_profiles() - context.bounds.height):
+                self.window = self._valid_profiles() - context.bounds.height
 
         top = self.window
         bottom = min(
