@@ -479,6 +479,7 @@ class ProfileListComponent(Component):
         self.cursor = 0 if self._valid_profiles() > 0 else -1
         self.window = 0
         self.changed = False
+        self.__last_click = (-1, -1, -1.0)
 
     def __invalidate_cache(self) -> None:
         self.__count: Optional[int] = None
@@ -696,16 +697,27 @@ class ProfileListComponent(Component):
                     if newcursor >= 0 and newcursor < self._valid_profiles():
                         self.cursor = newcursor
                         self.changed = True
-                if event.button == Buttons.RIGHT:
-                    menu = PopoverMenuComponent(
-                        [
-                            ('&Edit This Profile', lambda menuentry, option: self.__edit_current_profile()),
-                            ('&Delete This Profile', lambda menuentry, option: self.__delete_current_profile()),
-                            ('-', None),
-                            ('&Add New Profile', lambda menuentry, option: self.__add_new_profile()),
-                        ],
-                    )
-                    self.register(menu, menu.bounds.offset(event.y - self.location.top, event.x - self.location.left))
+                        if event.button == Buttons.LEFT:
+                            if (
+                                self.__last_click[0] == event.y and
+                                self.__last_click[1] == event.x and
+                                (time.time() - self.__last_click[2]) <= 1.0
+                            ):
+                                # A double click!
+                                self.__last_click = (-1, -1, -1.0)
+                                self.__edit_current_profile()
+                            else:
+                                self.__last_click = (event.y, event.x, time.time())
+                        if event.button == Buttons.RIGHT:
+                            menu = PopoverMenuComponent(
+                                [
+                                    ('&Edit This Profile', lambda menuentry, option: self.__edit_current_profile()),
+                                    ('&Delete This Profile', lambda menuentry, option: self.__delete_current_profile()),
+                                    ('-', None),
+                                    ('&Add New Profile', lambda menuentry, option: self.__add_new_profile()),
+                                ],
+                            )
+                            self.register(menu, menu.bounds.offset(event.y - self.location.top, event.x - self.location.left))
                 return True
 
         return False
