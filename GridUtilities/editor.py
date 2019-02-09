@@ -91,11 +91,9 @@ class EditProfileComponent(Component):
                 allowed_characters="0123456789",
                 focused=False,
             ).on_click(self.__click_select),
-            # TODO: Once we have a LUT for this, change this to a select box.
-            ClickableTextInputComponent(
-                profile.callsign,
-                max_length=5,
-                allowed_characters="0123456789",
+            ClickableSelectInputComponent(
+                profile.callsign or "No Call Sign",
+                ["No Call Sign"] + sorted(profile.callsigns),
                 focused=False,
             ).on_click(self.__click_select),
             ClickableTextInputComponent(
@@ -283,14 +281,7 @@ class EditProfileComponent(Component):
         return None
 
     def __validate_callsign(self) -> Optional[str]:
-        callsign = self.__inputs[self.CALLSIGN].text
-        if callsign == "65535":
-            # Special case for unset
-            return None
-        if len(callsign) < 1:
-            return "Must be at least one digit!"
-        if int(callsign) > 65535:
-            return "Must be at most 65535!"
+        # Its a select box so its always valid
         return None
 
     def __validate_totalwins(self) -> Optional[str]:
@@ -396,7 +387,8 @@ class EditProfileComponent(Component):
                 if self.__validate():
                     self.profile.name = self.__inputs[self.NAME].text
                     self.profile.pin = self.__inputs[self.PIN].text
-                    self.profile.callsign = self.__inputs[self.CALLSIGN].text
+                    callsign = self.__inputs[self.CALLSIGN].selected
+                    self.profile.callsign = None if callsign == "No Call Sign" else callsign
                     self.profile.totalwins = int(
                         self.__inputs[self.TOTALWINS].text,
                     )
@@ -591,7 +583,7 @@ class ProfileListComponent(Component):
         )
         for i in range(top, bottom):
             profile = self._profile_at(i)
-            display = " " + profile.name + " (" + profile.callsign + ")"
+            display = " " + profile.name + " (" + (profile.callsign or "No Call Sign") + ")"
             if len(display) < context.bounds.width:
                 display = display + " " * (context.bounds.width - len(display))
 
