@@ -16,6 +16,7 @@ from dragoncurses.component import (
     ListComponent,
     ClickableComponent,
     SelectInputComponent,
+    PopoverMenuComponent,
 )
 from dragoncurses.context import RenderContext, BoundingRectangle, Color
 from dragoncurses.scene import Scene
@@ -482,6 +483,7 @@ class ProfileListComponent(Component):
     def __invalidate_cache(self) -> None:
         self.__count: Optional[int] = None
         self.__profcache: Dict[int, int] = {}
+        self.changed = True
 
     def _valid_profiles(self) -> int:
         if self.__count is not None:
@@ -608,6 +610,31 @@ class ProfileListComponent(Component):
     def dirty(self) -> bool:
         return self.changed
 
+    def __edit_current_profile(self) -> None:
+        if self.cursor > -1:
+            self.scene.register_component(
+                EditProfileComponent(self._current_profile()).on_save(
+                    self.__invalidate_cache
+                )
+            )
+
+    def __add_new_profile(self) -> None:
+        self.scene.register_component(
+            EditProfileComponent(self._new_profile()).on_save(
+                    self.__invalidate_cache
+                )
+        )
+
+    def __delete_current_profile(self) -> None:
+        if self.cursor > -1:
+            self._current_profile().clear()
+            if self._valid_profiles() == 0:
+                self.cursor = -1
+            elif self.cursor > 0:
+                self.cursor -= 1
+            self.__invalidate_cache()
+            self.changed = True
+
     def handle_input(self, event: InputEvent) -> bool:
         if isinstance(event, KeyboardInputEvent):
             if event.character == Keys.UP:
@@ -621,29 +648,14 @@ class ProfileListComponent(Component):
                     self.changed = True
                 return True
             if event.character in ["d", Keys.DELETE]:
-                if self.cursor > -1:
-                    self._current_profile().clear()
-                    if self._valid_profiles() == 0:
-                        self.cursor = -1
-                    elif self.cursor > 0:
-                        self.cursor -= 1
-                    self.__invalidate_cache()
-                    self.changed = True
+                self.__delete_current_profile()
                 return True
             if event.character == Keys.ENTER:
-                if self.cursor > -1:
-                    self.scene.register_component(
-                        EditProfileComponent(self._current_profile()).on_save(
-                            self.__invalidate_cache
-                        )
-                    )
+                self.__edit_current_profile()
                 return True
             if event.character == "a":
-                self.scene.register_component(
-                    EditProfileComponent(self._new_profile()).on_save(
-                            self.__invalidate_cache
-                        )
-                )
+                self.__add_new_profile()
+                return True
             if event.character == Keys.HOME:
                 if self._valid_profiles() > 0:
                     self.cursor = 0
@@ -669,21 +681,33 @@ class ProfileListComponent(Component):
                     self.changed = True
                 return True
         if isinstance(event, MouseInputEvent):
-            if event.button == Buttons.LEFT:
-                xposition = event.x - self.location.left
-                if (
-                    self.location.width > self.PANEL_SIZE and
-                    self._valid_profiles() > 0
-                ):
-                    xmax = self.location.width - self.PANEL_SIZE
-                else:
-                    xmax = self.location.width
+            xposition = event.x - self.location.left
+            if (
+                self.location.width > self.PANEL_SIZE and
+                self._valid_profiles() > 0
+            ):
+                xmax = self.location.width - self.PANEL_SIZE
+            else:
+                xmax = self.location.width
 
-                if xposition < xmax:
-                    newcursor = (event.y - self.window) - self.location.top
+            if xposition < xmax:
+                if event.button in [Buttons.LEFT, Buttons.RIGHT]:
+                    newcursor = (event.y - self.location.top) + self.window
                     if newcursor >= 0 and newcursor < self._valid_profiles():
                         self.cursor = newcursor
                         self.changed = True
+                if event.button == Buttons.RIGHT:
+                    menu = PopoverMenuComponent(
+                        [
+                            ('&Edit This Profile', lambda menuentry, option: self.__edit_current_profile()),
+                            ('&Delete This Profile', lambda menuentry, option: self.__delete_current_profile()),
+                            ('-', None),
+                            ('&Add New Profile', lambda menuentry, option: self.__add_new_profile()),
+                        ],
+                    )
+                    self.register(menu, menu.bounds.offset(event.y - self.location.top, event.x - self.location.left))
+                return True
+
         return False
 
     def __repr__(self) -> str:
