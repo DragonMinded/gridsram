@@ -7,8 +7,9 @@ All of the scripts require Python 3.6 or greater due to their use of type hints.
 The following is a simple schematic that I built in order to edit profiles on an SRAM chip that I had in my posession. I've connected the 8 bidirectional data lines directly to 8 Arduino pins. I've connected two Arduino pins through inverters to the write enable and output enable lines to programatically select read/write mode. I've connected two Arduino pins to three serial to parallel shift registers in order to drive the necessary 17 address lines from two Arduino pins. If you use the same Arduino line, tied directly to the output enable line, and through an inverter to the write enable line (ensuring startup defaults to read), you can probably get away with using only two shift registers and tying A16 directly to the unused Arduino pin. I have not tested this. I have not included decoupling capacitors or a power supply. I assume that you can either build your own CMOS inverters or use a 7400 series inverter chip. When referring to a free floating pin, this indicates a connection to an Arduino Uno pin. In order to make an ASCII diagram possible, connections between the 74LS164 shift registers handling the address logic and the M48Z128 chip are not drawn. Instead they are labelled. It goes without saying but if you use an external PSU to provide +5V, connect the grounds from the Arduino, all of the ground points in the diagram, and the PSU.
 
 
-                           +-----------------------+
-                           |1  NC            VCC 32|----------------o +5V pin
+                                                        o +5V pin
+                           +-----------------------+    |
+                           |1  NC            VCC 32|----/
       74LS164 3 Qa (3)-----|2  A16           A15 31|-----74LS164 2 Qh (13)
      74LS164 2 Qg (12)-----|3  A14            NC 30|                                           /|
      74LS164 2 Qe (10)-----|4  A12            !W 29|------------------------------------------o |-----o Pin 12
@@ -23,9 +24,9 @@ The following is a simple schematic that I built in order to edit profiles on an
                Pin 2 o-----|13 DQ0           DQ6 20|-----o Pin 8
                Pin 3 o-----|14 DQ1           DQ5 19|-----o Pin 7
                Pin 4 o-----|15 DQ2           DQ4 18|-----o Pin 6
-   GND pin o---------------|16 GND           DQ3 17|-----o Pin 5
-                           +-----------------------+
-   
+                      /----|16 GND           DQ3 17|-----o Pin 5
+                      |    +-----------------------+
+              GND pin o
    
                                    74LS164 1         o +5V pin
                               +-----------------+    |
