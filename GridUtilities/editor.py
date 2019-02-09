@@ -3,7 +3,7 @@ import curses
 import os
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from dragoncurses.component import (
     Component,
@@ -65,6 +65,8 @@ class EditProfileComponent(Component):
         super().__init__()
         self.profile = profile
         self.__padding = padding
+        self.__save_callback: Optional[Callable[[], None]] = None
+        self.__cancel_callback: Optional[Callable[[], None]] = None
 
         def get_control_mode() -> str:
             if profile.freelook:
@@ -226,6 +228,14 @@ class EditProfileComponent(Component):
             ),
             padding=self.__padding,
         )
+
+    def on_save(self, callback: Optional[Callable[[], None]]) -> "EditProfileComponent":
+        self.__save_callback = callback
+        return self
+
+    def on_cancel(self, callback: Optional[Callable[[], None]]) -> "EditProfileComponent":
+        self.__cancel_callback = callback
+        return self
 
     @property
     def dirty(self) -> bool:
@@ -427,9 +437,13 @@ class EditProfileComponent(Component):
                         raise Exception("Logic error, unrecognized option!")
                     if not self.profile.valid:
                         raise Exception("Logic error, profile must be valid on save!")
+                    if self.__save_callback:
+                        self.__save_callback()
                     self.scene.unregister_component(self)
                 return True
             if event.character == Keys.ESCAPE:
+                if self.__cancel_callback:
+                    self.__cancel_callback()
                 self.scene.unregister_component(self)
                 return True
             if event.character == Keys.UP:
@@ -468,15 +482,24 @@ class ProfileListComponent(Component):
     def __init__(self, profiles: ProfileCollection) -> None:
         super().__init__()
         self.profiles = profiles
+        self.__invalidate_cache()
         self.cursor = 0 if self._valid_profiles() > 0 else -1
         self.window = 0
         self.changed = False
 
+    def __invalidate_cache(self) -> None:
+        self.__count: Optional[int] = None
+        self.__profcache: Dict[int, int] = {}
+
     def _valid_profiles(self) -> int:
+        if self.__count is not None:
+            return self.__count
+
         cnt = 0
         for profile in self.profiles:
             if profile.valid:
                 cnt += 1
+        self.__count = cnt
         return cnt
 
     def _new_profile(self) -> Profile:
@@ -491,10 +514,14 @@ class ProfileListComponent(Component):
         return self._profile_at(self.cursor)
 
     def _profile_at(self, pos: int) -> Profile:
+        if pos in self.__profcache:
+            return self.profiles[self.__profcache[pos]]
+
         cnt = 0
-        for profile in self.profiles:
+        for i, profile in enumerate(self.profiles):
             if profile.valid:
                 if cnt == pos:
+                    self.__profcache[pos] = i
                     return profile
                 cnt += 1
         raise Exception(
@@ -604,12 +631,16 @@ class ProfileListComponent(Component):
             if event.character == Keys.ENTER:
                 if self.cursor > -1:
                     self.scene.register_component(
-                        EditProfileComponent(self._current_profile())
+                        EditProfileComponent(self._current_profile()).on_save(
+                            self.__invalidate_cache
+                        )
                     )
                 return True
             if event.character == "a":
                 self.scene.register_component(
-                    EditProfileComponent(self._new_profile())
+                    EditProfileComponent(self._new_profile()).on_save(
+                            self.__invalidate_cache
+                        )
                 )
         if isinstance(event, MouseInputEvent):
             if event.button == Buttons.LEFT:
