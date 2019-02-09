@@ -635,6 +635,7 @@ class ProfileListComponent(Component):
                         self.cursor = -1
                     elif self.cursor > 0:
                         self.cursor -= 1
+                    self.__invalidate_cache()
                     self.changed = True
                 return True
             if event.character == Keys.ENTER:
@@ -651,6 +652,30 @@ class ProfileListComponent(Component):
                             self.__invalidate_cache
                         )
                 )
+            if event.character == Keys.HOME:
+                if self._valid_profiles() > 0:
+                    self.cursor = 0
+                    self.changed = True
+                return True
+            if event.character == Keys.END:
+                if self._valid_profiles() > 0:
+                    self.cursor = self._valid_profiles() - 1
+                    self.changed = True
+                return True
+            if event.character == Keys.PGDN:
+                if self._valid_profiles() > 0:
+                    self.cursor += self.location.height
+                    if self.cursor >= self._valid_profiles():
+                        self.cursor = self._valid_profiles() - 1
+                    self.changed = True
+                return True
+            if event.character == Keys.PGUP:
+                if self._valid_profiles() > 0:
+                    self.cursor -= self.location.height
+                    if self.cursor < 0:
+                        self.cursor = 0
+                    self.changed = True
+                return True
         if isinstance(event, MouseInputEvent):
             if event.button == Buttons.LEFT:
                 xposition = event.x - self.location.left
