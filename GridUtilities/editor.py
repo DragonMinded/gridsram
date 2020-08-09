@@ -489,6 +489,11 @@ class ProfileListComponent(Component):
         self.__profcache: Dict[int, int] = {}
         self.changed = True
 
+    def __invalidate_and_recount(self) -> None:
+        self.__invalidate_cache()
+        if self._valid_profiles() > 0 and self.cursor == -1:
+            self.cursor = 0
+
     def _valid_profiles(self) -> int:
         if self.__count is not None:
             return self.__count
@@ -625,7 +630,7 @@ class ProfileListComponent(Component):
     def __add_new_profile(self) -> None:
         self.scene.register_component(
             EditProfileComponent(self._new_profile()).on_save(
-                    self.__invalidate_cache
+                    self.__invalidate_and_recount
                 )
         )
 
