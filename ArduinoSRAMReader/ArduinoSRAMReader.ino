@@ -13,7 +13,7 @@ const unsigned int SERDAT = 10;
 const unsigned int SERCLK = 11;
 
 const unsigned int WE = 12;
-const unsigned int OE = 13;
+const unsigned int OE = 16;
 
 void read_mode() {
   digitalWrite(WE, LOW);

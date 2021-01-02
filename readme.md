@@ -17,7 +17,7 @@ The following is a simple schematic that I built in order to edit profiles on an
      74LS164 1 Qg (12)-----|6  A6      4      A8 27|-----74LS164 2 Qa (3)
      74LS164 1 Qf (11)-----|7  A5      8      A9 26|-----74LS164 2 Qb (4)
      74LS164 1 Qe (10)-----|8  A4      Z     A11 25|-----74LS164 2 Qd (6)                      /|
-      74LS164 1 Qd (6)-----|9  A3      1      !G 24|------------------------------------------o |-----o Pin 13
+      74LS164 1 Qd (6)-----|9  A3      1      !G 24|------------------------------------------o |-----o Analog Pin 2
       74LS164 1 Qc (5)-----|10 A2      2     A10 23|-----74LS164 2 Qc (5)                      \|
       74LS164 1 Qb (4)-----|11 A1      8      !E 22|----------------o GND (chip always enbled)
       74LS164 1 Qa (3)-----|12 A0            DQ7 21|-----o Pin 9
