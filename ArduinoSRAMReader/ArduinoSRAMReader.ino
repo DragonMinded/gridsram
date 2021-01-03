@@ -15,6 +15,8 @@ const unsigned int SERCLK = 11;
 const unsigned int WE = 12;
 const unsigned int OE = 16;
 
+const unsigned int CONTINUATION_RUN = 1024;
+
 void read_mode() {
   digitalWrite(WE, LOW);
   digitalWrite(OE, LOW);
@@ -57,12 +59,14 @@ void idle_mode() {
   pinMode(DQ7, INPUT);
 }
 
-void add_address_bit(unsigned long val) {
+void request_address(unsigned long address) {
+  // Shift out the address to the three shift registers, starting with the top 8 bits.
   digitalWrite(SERCLK, LOW);
-  digitalWrite(SERDAT, val ? HIGH : LOW);
-  delayMicroseconds(1);
-  digitalWrite(SERCLK, HIGH);
-  delayMicroseconds(1);
+  shiftOut(SERDAT, SERCLK, MSBFIRST, (address >> 16) & 0xFF);
+  digitalWrite(SERCLK, LOW);
+  shiftOut(SERDAT, SERCLK, MSBFIRST, (address >> 8) & 0xFF);
+  digitalWrite(SERCLK, LOW);
+  shiftOut(SERDAT, SERCLK, MSBFIRST, (address >> 0) & 0xFF);
   digitalWrite(SERCLK, LOW);
 }
 
@@ -70,14 +74,11 @@ unsigned char read_sram(unsigned long address) {
   // Disable output, clock out the address
   digitalWrite(OE, LOW);
 
-  for(unsigned int i = 0; i < 24; i++) {
-    add_address_bit((address >> (23 - i)) & 0x1);
-  }
+  // Tell the chip what address we're reading
+  request_address(address);
 
-  // Enable the output
-  delayMicroseconds(1);
+  // Stabilize the address lines, enable the output
   digitalWrite(OE, HIGH);
-  delayMicroseconds(1);
 
   // Grab the value
   unsigned char byteval = (
@@ -100,12 +101,8 @@ void write_sram(unsigned long address, unsigned char byteval) {
   // Disable writing, clock out the address
   digitalWrite(WE, LOW);
 
-  for(unsigned int i = 0; i < 24; i++) {
-    add_address_bit((address >> (23 - i)) & 0x1);
-  }
-
-  // Stabilize the data lines
-  delayMicroseconds(1);
+  // Tell the chip what address we're writing
+  request_address(address);
 
   // Set the data
   digitalWrite(DQ0, (byteval & 0x01) ? HIGH : LOW);
@@ -119,9 +116,8 @@ void write_sram(unsigned long address, unsigned char byteval) {
 
   // Request a write
   digitalWrite(WE, HIGH);
-  delayMicroseconds(1);
 
-  // Disable the writeand return
+  // Disable the write and return
   digitalWrite(WE, LOW);
 }
 
@@ -133,14 +129,14 @@ unsigned char read_serial() {
   return (unsigned char)(Serial.read() & 0xFF);
 }
 
-void return_general_error(char * str) {
+void return_general_error(const char * str) {
   Serial.print("NG");
   Serial.print(str);
   Serial.write(0);
   Serial.flush();
 }
 
-void return_address_error(char * name, unsigned long address) {
+void return_address_error(const char * name, unsigned long address) {
   Serial.print("NG");
   Serial.print(name);
   Serial.print(" address ");
@@ -196,7 +192,7 @@ void read_and_execute_command() {
     
     int cont = 0;
     for (unsigned long addr = startaddr; addr < endaddr; addr++) {
-      if (cont % 32 == 0) {
+      if (cont % CONTINUATION_RUN == 0) {
         if(read_serial() != 'C') {
           return_general_error("Unexpected continuation from client!");
           return;
@@ -243,7 +239,7 @@ void read_and_execute_command() {
     int cont = 0;
     for (unsigned long addr = startaddr; addr < endaddr; addr++) {
       // Flow control
-      if (cont % 32 == 0) {
+      if (cont % CONTINUATION_RUN == 0) {
         send_continue();
       }
       cont++;

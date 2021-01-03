@@ -3,6 +3,9 @@ import struct
 
 
 class SRAMProtocol:
+
+    CONTINUATION_RUN = 1024
+
     def __init__(self, port: str) -> None:
         ser = serial.Serial(
             port=port,
@@ -96,9 +99,9 @@ class SRAMProtocol:
         # Send in chunks
         while len(data) > 0:
             self.__check_continue()
-            self.__serial.write(data[:32])
+            self.__serial.write(data[:self.CONTINUATION_RUN])
             self.__serial.flush()
-            data = data[32:]
+            data = data[self.CONTINUATION_RUN:]
 
         self.__check_return()
 
@@ -131,7 +134,7 @@ class SRAMProtocol:
         while len(data) < length:
             self.__serial.write(b'CO')
             self.__serial.flush()
-            data = data + self.__serial.read(size=min(32, length - len(data)))
+            data = data + self.__serial.read(size=min(self.CONTINUATION_RUN, length - len(data)))
 
         self.__check_return()
         return data
