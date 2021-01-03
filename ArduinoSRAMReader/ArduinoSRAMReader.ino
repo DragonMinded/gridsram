@@ -15,7 +15,8 @@ const unsigned int SERCLK = 11;
 const unsigned int WE = 12;
 const unsigned int OE = 16;
 
-const unsigned int CONTINUATION_RUN = 1024;
+const unsigned int CONTINUATION_RUN_READ = 1024;
+const unsigned int CONTINUATION_RUN_WRITE = 32;
 
 void read_mode() {
   digitalWrite(WE, LOW);
@@ -79,6 +80,7 @@ unsigned char read_sram(unsigned long address) {
 
   // Stabilize the address lines, enable the output
   digitalWrite(OE, HIGH);
+  delayMicroseconds(1);
 
   // Grab the value
   unsigned char byteval = (
@@ -116,6 +118,7 @@ void write_sram(unsigned long address, unsigned char byteval) {
 
   // Request a write
   digitalWrite(WE, HIGH);
+  delayMicroseconds(1);
 
   // Disable the write and return
   digitalWrite(WE, LOW);
@@ -170,6 +173,7 @@ void read_and_execute_command() {
     // Read a chunk of memory, specified by start and end address
     unsigned long startaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
     unsigned long endaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
+    unsigned int cont = 0;
     
     if (startaddr >= MEM_SIZE) {
       return_address_error("Starting", startaddr);
@@ -190,9 +194,8 @@ void read_and_execute_command() {
     // Valid command, send response along with data
     send_continue();
     
-    int cont = 0;
     for (unsigned long addr = startaddr; addr < endaddr; addr++) {
-      if (cont % CONTINUATION_RUN == 0) {
+      if (cont % CONTINUATION_RUN_READ == 0) {
         if(read_serial() != 'C') {
           return_general_error("Unexpected continuation from client!");
           return;
@@ -202,7 +205,7 @@ void read_and_execute_command() {
           return;
         }
       }
-      cont++;
+      cont = (cont + 1) % CONTINUATION_RUN_READ;
 
       // Read from chip, output to PC.
       Serial.write(read_sram(addr));
@@ -219,6 +222,7 @@ void read_and_execute_command() {
     // Write a chunk of memory, specified by start and end address
     unsigned long startaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
     unsigned long endaddr = ((long)read_serial() << 16) | ((long)read_serial() << 8) | (long)read_serial();
+    unsigned int cont = 0;
         
     if (startaddr >= MEM_SIZE) {
       return_address_error("Starting", startaddr);
@@ -236,13 +240,12 @@ void read_and_execute_command() {
     // Put data lines into write mode
     write_mode();
 
-    int cont = 0;
     for (unsigned long addr = startaddr; addr < endaddr; addr++) {
       // Flow control
-      if (cont % CONTINUATION_RUN == 0) {
+      if (cont % CONTINUATION_RUN_WRITE == 0) {
         send_continue();
       }
-      cont++;
+      cont = (cont + 1) % CONTINUATION_RUN_WRITE;
       
       // Write to chip
       write_sram(addr, read_serial());
