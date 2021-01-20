@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name M48Z128-85PM1)(type KiCad)(uri ${KIPRJMOD}/M48Z128-85PM1.pretty)(options "")(descr ""))
+  (lib (name Arduino)(type KiCad)(uri ${KIPRJMOD}/arduino-kicad-library-master/Arduino.pretty)(options "")(descr ""))
+)

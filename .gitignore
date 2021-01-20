@@ -3,3 +3,4 @@ libraries/
 *.bin
 __pycache__/
 .mypy_cache/
+*.bak

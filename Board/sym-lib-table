@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name M48Z128-85PM1)(type Legacy)(uri ${KIPRJMOD}/M48Z128-85PM1.lib)(options "")(descr ""))
+  (lib (name arduino)(type Legacy)(uri ${KIPRJMOD}/arduino-kicad-library-master/arduino.lib)(options "")(descr ""))
+)
