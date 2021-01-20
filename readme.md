@@ -12,12 +12,12 @@ The following is a simple schematic that I built in order to edit profiles on an
                            |1  NC            VCC 32|----/
       74LS164 3 Qa (3)-----|2  A16           A15 31|-----74LS164 2 Qh (13)
      74LS164 2 Qg (12)-----|3  A14            NC 30|                                           /|
-     74LS164 2 Qe (10)-----|4  A12            !W 29|------------------------------------------o |-----o Pin 12
+     74LS164 2 Qe (10)-----|4  A12            !W 29|-----------------------------------------o |-----o Pin 12
      74LS164 1 Qh (13)-----|5  A7      M     A13 28|-----74LS164 2 Qf (11)                     \|
      74LS164 1 Qg (12)-----|6  A6      4      A8 27|-----74LS164 2 Qa (3)
      74LS164 1 Qf (11)-----|7  A5      8      A9 26|-----74LS164 2 Qb (4)
      74LS164 1 Qe (10)-----|8  A4      Z     A11 25|-----74LS164 2 Qd (6)                      /|
-      74LS164 1 Qd (6)-----|9  A3      1      !G 24|------------------------------------------o |-----o Analog Pin 2
+      74LS164 1 Qd (6)-----|9  A3      1      !G 24|-----------------------------------o |-----o Analog Pin 2
       74LS164 1 Qc (5)-----|10 A2      2     A10 23|-----74LS164 2 Qc (5)                      \|
       74LS164 1 Qb (4)-----|11 A1      8      !E 22|----------------o GND (chip always enbled)
       74LS164 1 Qa (3)-----|12 A0            DQ7 21|-----o Pin 9
@@ -63,3 +63,7 @@ The following is a simple schematic that I built in order to edit profiles on an
                          /----|7  GND     CLK  8|-----o Pin 11
                          |    +-----------------+
                  GND pin o
+
+## PCB and KiCad Schematic
+
+If you don't want to hand-wire a circuit, I have tested out an Arduino shield board that you can have manufactured and then assemble yourself. If you just want to get a board manufactured, check out https://oshpark.com/shared_projects/tCR4N9Gb which has the BOM as well as the board laid out and ready to be ordered. You will still need to assemble the board yourself which requires some soldering experience. For the source files (made in KiCad), check out the `Board/` folder.
