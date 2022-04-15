@@ -357,8 +357,8 @@ class EditProfileComponent(Component):
         tower, level = towerposition.split(",")
         tower = tower.strip()
         level = level.strip()
-        if len(tower) == 0 or int(tower) < 1 or int(tower) > 9:
-            return "Tower must be between 1-9!"
+        if len(tower) == 0 or int(tower) < 1 or int(tower) > 10:
+            return "Tower must be between 1-10!"
         if len(level) == 0 or int(level) < 1 or int(level) > 6:
             return "Level must be between 1-6!"
         return None
@@ -822,11 +822,17 @@ def main() -> int:
     args = parser.parse_args()
 
     # Load the SRAM file
-    with open(args.file, "rb") as fp:
-        profiles = ProfileCollection(
-            fp.read(),
-            is_mame_format=args.mame_compat,
-        )
+    try:
+        with open(args.file, "rb") as fp:
+            data = fp.read()
+    except FileNotFoundError:
+        # Assume they meant to create a new file.
+        data = b"0" * 131072
+
+    profiles = ProfileCollection(
+        data,
+        is_mame_format=args.mame_compat,
+    )
 
     def wrapped(context) -> None:
         # Run the main program loop
