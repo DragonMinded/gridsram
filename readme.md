@@ -2,6 +2,36 @@ A set of utilities for interfacing with a M48Z128-85PM1 battery-backed SRAM chip
 
 All of the scripts require Python 3.6 or greater due to their use of type hints. The ``editor.py`` script additionally requires that [dragoncurses](https://github.com/DragonMinded/dragoncurses) be installed. All utilites are meant to be run from the commandline and all utilities include help. Edited profiles are fully compatible with both the emulated MAME release of The Grid as well as actual arcade hardware. If everything is working correctly, it should take about a minute to dump a full SRAM chip and about a minute and a half to write a full SRAM chip.
 
+## Running the Utilities
+
+Utilities can all be run from the commandline on any operating system with Python 3.6 or greater in the path. All of them support help, so you should start by running any of the utilities with the "--help" flag in order to see more of the utility's operation. All utilities should be run from within the `GridUtilities` folder.
+
+### dump.py
+
+A simple utility that can interface with hardware as built below and plugged into a programmed Arduino. It can perform a read or a write action. Run it like so to see options:
+
+```
+python3 dump.py --help
+```
+
+Note that depending on your operating system, the default port will not work and you will have to specify it directly. On MacOS and Linux, you can run `ls /dev/tty*` and your Arduino will probably be the only one listed. On Windows, you will have to specify the com port such as "COM1" that the Arduino is connected to.
+
+### print.py
+
+A simple parsing utility that will read an SRAM dumped from "dump.py" or taken from MAME and print out one or more profiles contained inside it. Run it like so to see options:
+
+```
+python3 print.py --help
+```
+
+### editor.py
+
+A text-based UI for editing profiles on a SRAM dumped from "dump.py" or taken from MAME. Note that this requires [dragoncurses](https://github.com/DragonMinded/dragoncurses) be installed in order to operate properly! It can create new profiles, delete profiles, and edit the details of any existing profile including the PIN, name, call sign and other details. Run it like so to see options:
+
+```
+python3 editor.py --help
+```
+
 ## Arduino Schematic for Real Hardware
 
 The following is a simple schematic that I built in order to edit profiles on an SRAM chip that I had in my posession. I've connected the 8 bidirectional data lines directly to 8 Arduino pins. I've connected two Arduino pins through inverters to the write enable and output enable lines to programatically select read/write mode. I've connected two Arduino pins to three serial to parallel shift registers in order to drive the necessary 17 address lines from two Arduino pins. If you use the same Arduino line, tied directly to the output enable line, and through an inverter to the write enable line (ensuring startup defaults to read), you can probably get away with using only two shift registers and tying A16 directly to the unused Arduino pin. I have not tested this. I have not included decoupling capacitors or a power supply. I recommend 0.1uF decoupling capacitors for each chip including the M48Z128. The datasheet for the SRAM also recommends a 1N5817 diode connected between its VCC and GND pins to protect against data loss when powering the chip. You should be able to take +5V and GND from the Arduino and it will supply enough voltage. I assume that you can either build your own CMOS inverters using BJTs or use a 7400 series inverter chip such as a quad NAND gate with both inputs tied together for each gate. When referring to a free floating pin, this indicates a connection to an Arduino Uno pin. In order to make an ASCII diagram possible, connections between the 74LS164 shift registers handling the address logic and the M48Z128 chip are not drawn. Instead they are labelled. It goes without saying but if you use an external PSU to provide +5V, connect the grounds from the Arduino, all of the ground points in the diagram, and the PSU.

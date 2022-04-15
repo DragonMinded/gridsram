@@ -22,7 +22,7 @@ if __name__ == "__main__":
         type=str,
         default="/dev/ttyACM0",
         help="Serial port of the helper Arduino. Defaults " +
-             "to default Arduino port.",
+             "to default Arduino port on Linux which is '/dev/ttyACM0'.",
     )
     parser.add_argument(
         "--offset",
