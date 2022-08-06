@@ -341,7 +341,10 @@ class Profile:
             return ""
 
         length, pin = struct.unpack(">BI", self.data[0:5])
-        pin = pin | ((length & 0x0F) << 32)
+
+        # The top digit is stored not as the missing bits, but as the actual
+        # last digit. Bleh.
+        pin += ((length & 0x0F) * 1000000000)
         length = (length >> 4) & 0x0F
 
         pin = str(pin)
@@ -356,9 +359,14 @@ class Profile:
         if not code.isdigit():
             raise ProfileException("Non-digit pin code provided!")
 
-        intcode = int(code)
-        length = ((len(code) << 4) & 0xF0) | ((intcode >> 32) & 0x0F)
-        rest = intcode & 0xFFFFFFFF
+        if len(code) == 10:
+            # The top digit is stored not as the missing bits, but as the actual
+            # last digit. Bleh.
+            length = ((len(code) << 4) & 0xF0) | int(code[0])
+            rest = int(code[1:])
+        else:
+            length = (len(code) << 4) & 0xF0
+            rest = int(code) & 0xFFFFFFFF
 
         self.data = struct.pack(">BI", length, rest) + self.data[5:]
         self._update_checksum()
