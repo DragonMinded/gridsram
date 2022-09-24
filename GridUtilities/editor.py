@@ -32,7 +32,7 @@ from dragoncurses.input import (
     Keys,
 )
 from dragoncurses.settings import Settings
-from profile import Profile, ProfileCollection
+from profile import Profile, ProfileCollection, SRAM
 
 
 Settings.enable_unicode = True
@@ -762,7 +762,7 @@ class ListProfilesScene(Scene):
                 formatted=True,
             ),
             BorderComponent(
-                ProfileListComponent(self.settings['profiles']),
+                ProfileListComponent(self.settings['sram'].profiles),
                 style=(
                     BorderComponent.SINGLE if Settings.enable_unicode
                     else BorderComponent.ASCII
@@ -774,7 +774,7 @@ class ListProfilesScene(Scene):
 
     def save_profiles(self) -> None:
         with open(self.settings['file'], 'wb') as fp:
-            fp.write(self.settings['profiles'].data)
+            fp.write(self.settings['sram'].data)
         self.main_loop.exit()
 
     def handle_input(self, event: InputEvent) -> bool:
@@ -829,7 +829,7 @@ def main() -> int:
         # Assume they meant to create a new file.
         data = b"0" * 131072
 
-    profiles = ProfileCollection(
+    sram = SRAM(
         data,
         is_mame_format=args.mame_compat,
     )
@@ -839,7 +839,7 @@ def main() -> int:
         with loop_config(context):
             loop = MainLoop(
                 context,
-                {'file': args.file, 'profiles': profiles},
+                {'file': args.file, 'sram': sram},
             )
             loop.change_scene(ListProfilesScene)
             loop.run()

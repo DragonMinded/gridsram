@@ -534,7 +534,7 @@ class Profile:
         tower, level = towerposition
         if level < 1 or level > 6:
             raise ProfileException("Invalid level value")
-        if tower < 1 or tower > 9:
+        if tower < 1 or tower > 10:
             raise ProfileException("Invalid tower value")
         posbyte = (((tower - 1) & 0xF) << 4) | ((level - 1) & 0xF)
         self.data = (
@@ -651,35 +651,20 @@ class Profile:
 
 
 class ProfileCollection:
-    def __init__(self, data: bytes, *, is_mame_format: bool = False) -> None:
-        if is_mame_format:
-            # Mame stores the SRAM for The Grid as 32-bit integers for each
-            # 8-bit value in the SRAM. This is because the game maps the chip
-            # to a 32-bit address with the top 24 bits zero'd out. So,
-            # compensate for this.
-            data = data[::4]
-        if len(data) != 131072:
+    def __init__(self, data: bytes) -> None:
+        if len(data) != 0x1F7E8:
             raise ProfileException("Invalid profile chunk!")
-
-        # Save this for serialization
-        self._mame_compat = is_mame_format
 
         def read_profile(chunk: bytes, spot: int) -> Profile:
             return Profile(chunk[(86 * spot):][:86])
 
         self._profiles = [read_profile(data, spot) for spot in range(0, 1500)]
-        self._extra = data[(1500 * 86):]
 
     @property
     def data(self) -> bytes:
         data = b"".join(p.data for p in self._profiles)
-        data = data + self._extra
-        if len(data) != 131072:
+        if len(data) != 0x1F7E8:
             raise Exception("Logic error, shouldn't be possible!")
-
-        if self._mame_compat:
-            # We need to convert back to make broken style here
-            data = b"".join(bytes([b, 0, 0, 0]) for b in data)
 
         return data
 
@@ -705,3 +690,38 @@ class ProfileCollection:
 
     def __reversed__(self):
         return reversed(self._profiles)
+
+
+class SRAM:
+    def __init__(self, data: bytes, *, is_mame_format: bool = False) -> None:
+        if is_mame_format:
+            # Mame stores the SRAM for The Grid as 32-bit integers for each
+            # 8-bit value in the SRAM. This is because the game maps the chip
+            # to a 32-bit address with the top 24 bits zero'd out. So,
+            # compensate for this.
+            data = data[::4]
+        if len(data) != 131072:
+            raise ProfileException("Invalid profile chunk!")
+
+        # Save this for serialization
+        self._mame_compat = is_mame_format
+
+        # Only the first 1500 spots are used for profiles. This works out to the
+        # chip byte range of 0x0-0x1F7E8. Data after this from 0x1F7E8-0x20000
+        # is cabinet high scores.
+        self.profiles = ProfileCollection(data[:0x1F7E8])
+
+        # The rest of the data we don't support reading/writing.
+        self._extra = data[0x1F7E8:]
+
+    @property
+    def data(self) -> bytes:
+        data = self.profiles.data + self._extra
+        if len(data) != 131072:
+            raise Exception("Logic error, shouldn't be possible!")
+
+        if self._mame_compat:
+            # We need to convert back to make broken style here
+            data = b"".join(bytes([b, 0, 0, 0]) for b in data)
+
+        return data

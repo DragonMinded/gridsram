@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 import argparse
-from profile import Profile, ProfileCollection
+from profile import Profile, SRAM
 
 
 def print_profile(profile: Profile) -> None:
@@ -41,12 +41,12 @@ if __name__ == "__main__":
 
     with open(args.file, 'rb') as fp:
         data = fp.read()
-    profiles = ProfileCollection(data, is_mame_format=args.mame_compat)
+    sram = SRAM(data, is_mame_format=args.mame_compat)
 
     if offset is None:
-        for index, profile in enumerate(profiles):
+        for index, profile in enumerate(sram.profiles):
             if profile.valid:
                 print("Offset index", index)
                 print_profile(profile)
     else:
-        print_profile(profiles[offset])
+        print_profile(sram.profiles[offset])
