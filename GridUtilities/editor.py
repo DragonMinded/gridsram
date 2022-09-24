@@ -825,14 +825,19 @@ def main() -> int:
     try:
         with open(args.file, "rb") as fp:
             data = fp.read()
+        sram = SRAM(
+            data,
+            is_mame_format=args.mame_compat,
+        )
+
     except FileNotFoundError:
         # Assume they meant to create a new file.
-        data = b"0" * 131072
-
-    sram = SRAM(
-        data,
-        is_mame_format=args.mame_compat,
-    )
+        data = b"\xFF" * (131072 if not args.mame_compat else 524288)
+        sram = SRAM(
+            data,
+            is_mame_format=args.mame_compat,
+        )
+        sram.clear()
 
     def wrapped(context) -> None:
         # Run the main program loop

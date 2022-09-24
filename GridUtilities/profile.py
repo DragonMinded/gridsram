@@ -6,6 +6,28 @@ class ProfileException(Exception):
     pass
 
 
+def truncate_name(name: str) -> str:
+    for i in range(len(name)):
+        if name[i] == '\x00':
+            return name[:i]
+    return name
+
+
+def calc_checksum(data: bytes) -> int:
+    rotatebit = 1
+    checksum = 0
+    for val in data:
+        val = (val | rotatebit) & 0xFF
+
+        rotatebit = rotatebit << 1
+        if rotatebit == 256:
+            rotatebit = 1
+
+        checksum = checksum + val
+
+    return checksum
+
+
 class Profile:
     __NAME_TO_CALLSIGN: Dict[Optional[str], int] = {
         None: 65535,
@@ -295,18 +317,7 @@ class Profile:
         # to any properties below.
 
     def _calc_checksum(self) -> int:
-        rotatebit = 1
-        checksum = 0
-        for val in self.data[:-4]:
-            val = (val | rotatebit) & 0xFF
-
-            rotatebit = rotatebit << 1
-            if rotatebit == 256:
-                rotatebit = 1
-
-            checksum = checksum + val
-
-        return checksum
+        return calc_checksum(self.data[:-4])
 
     def _update_checksum(self) -> None:
         # Ensure data bit is set properly. If we edit an empty profile that
@@ -381,7 +392,7 @@ class Profile:
             vals[3] + vals[2] + vals[1] + vals[0] +
             vals[7] + vals[6] + vals[5] + vals[4]
         )
-        return namestr.rstrip(b"\0").decode('ascii')
+        return truncate_name(namestr.decode('ascii'))
 
     @name.setter
     def name(self, newname: str) -> None:
@@ -668,6 +679,10 @@ class ProfileCollection:
 
         return data
 
+    def clear(self) -> None:
+        for profile in self._profiles:
+            profile.clear()
+
     def __len__(self) -> int:
         return len(self._profiles)
 
@@ -692,6 +707,134 @@ class ProfileCollection:
         return reversed(self._profiles)
 
 
+class TowerClear:
+    def __init__(self, data: bytes) -> None:
+        if len(data) != 10:
+            raise Exception("Invalid tower clear length!")
+        self.data: bytes = data
+
+    @property
+    def time(self) -> float:
+        vals = struct.unpack(">BB", self.data[0:2])
+        minutes = (vals[0] >> 4) & 0xF
+        tenths = vals[0] & 0xF
+        seconds = vals[1] & 0xFF
+
+        return ((minutes * 60.0) + seconds) + (tenths / 10.0)
+
+    @time.setter
+    def time(self, newval: float) -> None:
+        minutes = int(newval / 60)
+        seconds = int(newval - (minutes * 60.0))
+        tenths = round((newval - int(newval)) * 10.0)
+
+        self.data = (
+            struct.pack(">BB", (minutes & 0xF) << 4 | (tenths & 0xF), seconds) +
+            self.data[2:]
+        )
+
+    @property
+    def name(self) -> str:
+        vals = struct.unpack(">ssssssss", self.data[2:10])
+        namestr = (
+            vals[3] + vals[2] + vals[1] + vals[0] +
+            vals[7] + vals[6] + vals[5] + vals[4]
+        )
+        return truncate_name(namestr.decode('ascii'))
+
+    @name.setter
+    def name(self, newname: str) -> None:
+        if len(newname) < 1 or len(newname) > 7:
+            raise ProfileException("Invalid name length!")
+        for char in newname:
+            if char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ":
+                raise ProfileException("Invalid name character!")
+        namebytes = newname.encode('ascii')
+        while len(namebytes) < 8:
+            namebytes = namebytes + b"\0"
+
+        self.data = (
+            self.data[:2] +
+            bytes([
+                namebytes[3],
+                namebytes[2],
+                namebytes[1],
+                namebytes[0],
+                namebytes[7],
+                namebytes[6],
+                namebytes[5],
+                namebytes[4],
+            ])
+        )
+
+    def clear(self) -> None:
+        self.data = b"\x00" * 10
+        self.name = "MIDWAY"
+        self.time = 115.0
+
+    def __str__(self) -> str:
+        def line(title: str, content: object) -> str:
+            return title + ": " + str(content)
+
+        def format_time(time: float) -> str:
+            minutes = int(time / 60)
+            seconds = int(time - (minutes * 60.0))
+            tenths = round((time - int(time)) * 10.0)
+            return f"{minutes}:{seconds:02d}.{tenths}"
+
+        return "\n".join([
+            line("Name", self.name),
+            line("Clear Time", format_time(self.time)),
+        ])
+
+
+class TowerCollection:
+    def __init__(self, data: bytes) -> None:
+        if len(data) != 0x258:
+            raise ProfileException("Invalid tower chunk!")
+
+        def read_tower(chunk: bytes, spot: int) -> TowerClear:
+            return TowerClear(chunk[(10 * spot):][:10])
+
+        # There are 10 towers with 6 levels each.
+        self._towers = [read_tower(data, spot) for spot in range(0, 10 * 6)]
+
+    @property
+    def data(self) -> bytes:
+        data = b"".join(p.data for p in self._towers)
+        if len(data) != 0x258:
+            raise Exception("Logic error, shouldn't be possible!")
+
+        return data
+
+    def clear(self) -> None:
+        for tower in self._towers:
+            tower.clear()
+
+    def __len__(self) -> int:
+        return len(self._towers)
+
+    def __getitem__(self, key: int) -> TowerClear:
+        return self._towers[key]
+
+    def __setitem__(self, key: int, value: object) -> None:
+        if not isinstance(value, TowerClear):
+            raise ProfileException(
+                "Cannot assign non-TowerClear to TowerCollection entry!"
+            )
+        self._towers[key] = value
+
+    def __delitem__(self, key: int) -> None:
+        # Map this to erasing a tower best time
+        self._towers[key].clear()
+
+    def __iter__(self):
+        return iter(self._towers)
+
+    def __reversed__(self):
+        return reversed(self._towers)
+
+
 class SRAM:
     def __init__(self, data: bytes, *, is_mame_format: bool = False) -> None:
         if is_mame_format:
@@ -710,13 +853,22 @@ class SRAM:
         # chip byte range of 0x0-0x1F7E8. Data after this from 0x1F7E8-0x20000
         # is cabinet high scores.
         self.profiles = ProfileCollection(data[:0x1F7E8])
+        self.towers = TowerCollection(data[0x1F7E9:0x1FA41])
 
         # The rest of the data we don't support reading/writing.
-        self._extra = data[0x1F7E8:]
+        self._extra = data[0x1FA41:]
+        self._byteval = data[0x1F7E8:0x1F7E9]
 
     @property
     def data(self) -> bytes:
-        data = self.profiles.data + self._extra
+        data = self.profiles.data + self._byteval + self.towers.data + self._extra
+        if len(data) != 131072:
+            raise Exception("Logic error, shouldn't be possible!")
+
+        # The game also does a full checksum over the tower clears, and a sentinel byte,
+        # but not over a single byte between the tower clears and the checksum itself.
+        new_checksum = struct.pack(">I", calc_checksum(data[0x1F7E8:0x1FA41]))
+        data = data[:0x1FA42] + new_checksum + data[0x1FA46:]
         if len(data) != 131072:
             raise Exception("Logic error, shouldn't be possible!")
 
@@ -725,3 +877,7 @@ class SRAM:
             data = b"".join(bytes([b, 0, 0, 0]) for b in data)
 
         return data
+
+    def clear(self) -> None:
+        self.profiles.clear()
+        self.towers.clear()
