@@ -1,4 +1,4 @@
-A set of utilities for interfacing with a M48Z128-85PM1 battery-backed SRAM chip that has been used in The Grid by Midway. This is the chip that stores all of the player profiles so that players can track their statistics, name and call name across different games. The ``ArduinoSRAMReader`` directory contains an Arduino sketch that can interface with the ``dump.py`` utility inside the ``GridUtilities`` directory. When used together, an SRAM chip can be partially or fully read or written. The ``print.py`` utility takes a dumped 128KB SRAM file (or a MAME ``nvram`` file) and prints profiles contained in it. The ``editor.py`` utility presents a curses interface where you can add, edit and delete profiles from an SRAM file (or a MAME ``nvram`` file).
+A set of utilities for interfacing with a M48Z128-85PM1 battery-backed SRAM chip that has been used in The Grid by Midway. This is the chip that stores all of the player profiles so that players can track their statistics, name and call name across different games. It also stores all the single player tower clear records for the cabinet. The ``ArduinoSRAMReader`` directory contains an Arduino sketch that can interface with the ``dump.py`` utility inside the ``GridUtilities`` directory. When used together, an SRAM chip can be partially or fully read or written. The ``print.py`` utility takes a dumped 128KB SRAM file (or a MAME ``nvram`` file) and prints profiles and tower clear records contained in it. The ``editor.py`` utility presents a curses interface where you can add, edit and delete profiles from an SRAM file (or a MAME ``nvram`` file) as well as reset tower clear records for various towers.
 
 All of the scripts require Python 3.6 or greater due to their use of type hints. The ``editor.py`` script additionally requires that [dragoncurses](https://github.com/DragonMinded/dragoncurses) be installed. All utilites are meant to be run from the commandline and all utilities include help. Edited profiles are fully compatible with both the emulated MAME release of The Grid as well as actual arcade hardware. If everything is working correctly, it should take about a minute to dump a full SRAM chip and about a minute and a half to write a full SRAM chip.
 
@@ -18,7 +18,7 @@ Note that depending on your operating system, the default port will not work and
 
 ### print.py
 
-A simple parsing utility that will read an SRAM dumped from "dump.py" or taken from MAME and print out one or more profiles contained inside it. Run it like so to see options:
+A simple parsing utility that will read an SRAM dumped from "dump.py" or taken from MAME and print out one or more profiles and tower clear records contained inside it. Run it like so to see options:
 
 ```
 python3 print.py --help

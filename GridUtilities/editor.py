@@ -18,6 +18,7 @@ from dragoncurses.component import (
     ClickableComponent,
     SelectInputComponent,
     PopoverMenuComponent,
+    TabComponent,
 )
 from dragoncurses.context import RenderContext, BoundingRectangle, Color
 from dragoncurses.scene import Scene
@@ -32,7 +33,7 @@ from dragoncurses.input import (
     Keys,
 )
 from dragoncurses.settings import Settings
-from profile import Profile, ProfileCollection, SRAM
+from profile import Profile, ProfileCollection, TowerCollection, SRAM
 
 
 CursesContext = Any
@@ -825,27 +826,184 @@ class ProfileListComponent(Component):
         return "ProfileListComponent()"
 
 
-class ListProfilesScene(Scene):
+class TowerListComponent(Component):
+    def __init__(self, towers: TowerCollection) -> None:
+        super().__init__()
+        self.towers = towers
+        self.cursor = 0
+        self.window = 0
+        self.changed = False
+
+    def render(self, context: RenderContext) -> None:
+        # No artifacts, please!
+        context.clear()
+
+        # Handle scrolling up with some buffer.
+        if (self.cursor - 4) < self.window:
+            self.window = self.cursor - 4
+            if self.window < 0:
+                self.window = 0
+        # Handle scrolling down with some buffer.
+        if (self.cursor + 5) > (self.window + context.bounds.height):
+            self.window = (self.cursor + 5) - context.bounds.height
+            if self.window > (len(self.towers) - context.bounds.height):
+                self.window = len(self.towers) - context.bounds.height
+
+        top = self.window
+        bottom = min(
+            self.window + context.bounds.height,
+            len(self.towers),
+        )
+        for i in range(top, bottom):
+            tower = self.towers[i]
+            towerno = int(i / 6)
+            levelno = i % 6
+            towerstr = ", ".join(str(tower).split("\n"))
+
+            display = f"Tower {towerno + 1}, {levelno + 1} - {towerstr}"
+            if len(display) < context.bounds.width:
+                display = display + " " * (context.bounds.width - len(display))
+
+            context.draw_string(i - top, 0, display, invert=(i == self.cursor))
+
+        self.changed = False
+
+    @property
+    def dirty(self) -> bool:
+        return self.changed
+
+    def __delete_all_records(self) -> None:
+        self.towers.clear()
+        self.changed = True
+
+    def __delete_current_record(self) -> None:
+        self.towers[self.cursor].clear()
+        self.changed = True
+
+    def handle_input(self, event: InputEvent) -> bool:
+        if isinstance(event, KeyboardInputEvent):
+            if event.character == Keys.UP:
+                if self.cursor > 0:
+                    self.cursor -= 1
+                    self.changed = True
+                return True
+            if event.character == Keys.DOWN:
+                if self.cursor < (len(self.towers) - 1):
+                    self.cursor += 1
+                    self.changed = True
+                return True
+            if event.character in ["d", Keys.DELETE]:
+                self.__delete_current_record()
+                return True
+            if event.character == "r":
+                self.__delete_all_records()
+                return True
+            if event.character == Keys.HOME:
+                self.cursor = 0
+                self.changed = True
+                return True
+            if event.character == Keys.END:
+                self.cursor = len(self.towers) - 1
+                self.changed = True
+                return True
+            if event.character == Keys.PGDN:
+                self.cursor += self.location.height if self.location is not None else 1
+                if self.cursor >= len(self.towers):
+                    self.cursor = len(self.towers) - 1
+                self.changed = True
+                return True
+            if event.character == Keys.PGUP:
+                self.cursor -= self.location.height if self.location is not None else 1
+                if self.cursor < 0:
+                    self.cursor = 0
+                self.changed = True
+                return True
+        if isinstance(event, MouseInputEvent):
+            if self.location is not None:
+                xposition = event.x - self.location.left
+                xmax = self.location.width
+
+                if xposition < xmax:
+                    if event.button in [Buttons.LEFT, Buttons.RIGHT]:
+                        newcursor = (event.y - self.location.top) + self.window
+                        if newcursor >= 0 and newcursor < len(self.towers):
+                            self.cursor = newcursor
+                            self.changed = True
+                            if event.button == Buttons.RIGHT:
+                                menu = PopoverMenuComponent(
+                                    [
+                                        (
+                                            "&Delete This Record",
+                                            lambda menuentry, option: self.__delete_current_record(),
+                                        ),
+                                    ],
+                                )
+                                self.register(
+                                    menu,
+                                    menu.bounds.offset(
+                                        event.y - self.location.top,
+                                        event.x - self.location.left,
+                                    ),
+                                )
+                    return True
+        if isinstance(event, ScrollInputEvent):
+            if event.direction == Directions.UP:
+                if self.cursor > 0:
+                    self.cursor -= 3
+                    if self.cursor < 0:
+                        self.cursor = 0
+                    self.changed = True
+                return True
+            if event.direction == Directions.DOWN:
+                if self.cursor < (len(self.towers) - 1):
+                    self.cursor += 3
+                    if self.cursor > (len(self.towers) - 1):
+                        self.cursor = len(self.towers) - 1
+                    self.changed = True
+                return True
+
+        return False
+
+    def __repr__(self) -> str:
+        return "TowerListComponent()"
+
+
+class SRAMEditorScene(Scene):
     def create(self) -> Component:
-        return StickyComponent(
-            LabelComponent(
-                "<invert> up/down - select profile </invert> "
-                + "<invert> enter - edit selected profile </invert> "
-                + "<invert> a - add new profile </invert> "
-                + "<invert> d - delete selected profile </invert> "
-                + "<invert> esc/q - quit </invert>",
-                formatted=True,
-            ),
-            BorderComponent(
-                ProfileListComponent(self.settings["sram"].profiles),
-                style=(
-                    BorderComponent.SINGLE
-                    if Settings.enable_unicode
-                    else BorderComponent.ASCII
+        return TabComponent(
+            [
+                (
+                    "&Profiles",
+                    StickyComponent(
+                        LabelComponent(
+                            "<invert> up/down - select profile </invert> "
+                            + "<invert> enter - edit selected profile </invert> "
+                            + "<invert> a - add new profile </invert> "
+                            + "<invert> d - delete selected profile </invert> "
+                            + "<invert> esc/q - quit </invert>",
+                            formatted=True,
+                        ),
+                        ProfileListComponent(self.settings["sram"].profiles),
+                        location=StickyComponent.LOCATION_BOTTOM,
+                        size=1,
+                    ),
                 ),
-            ),
-            location=StickyComponent.LOCATION_BOTTOM,
-            size=1,
+                (
+                    "&Tower Clears",
+                    StickyComponent(
+                        LabelComponent(
+                            "<invert> up/down - select record </invert> "
+                            + "<invert> d - delete selected record </invert> "
+                            + "<invert> r - reset all records </invert> "
+                            + "<invert> esc/q - quit </invert>",
+                            formatted=True,
+                        ),
+                        TowerListComponent(self.settings["sram"].towers),
+                        location=StickyComponent.LOCATION_BOTTOM,
+                        size=1,
+                    ),
+                ),
+            ]
         )
 
     def save_profiles(self) -> None:
@@ -922,7 +1080,7 @@ def main() -> int:
                 context,
                 {"file": args.file, "sram": sram},
             )
-            loop.change_scene(ListProfilesScene)
+            loop.change_scene(SRAMEditorScene)
             loop.run()
 
     os.environ.setdefault("ESCDELAY", "0")
