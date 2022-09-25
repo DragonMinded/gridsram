@@ -599,14 +599,14 @@ class ProfileListComponent(Component):
                 BoundingRectangle(
                     top=0,
                     left=0,
-                    bottom=context.bounds.bottom,
+                    bottom=context.bounds.bottom - 1,
                     right=context.bounds.right - self.PANEL_SIZE,
                 )
             ) as listcontext:
                 self._render_list(listcontext)
 
             # Draw the divider
-            for y in range(context.bounds.height):
+            for y in range(context.bounds.height - 1):
                 context.draw_string(
                     y,
                     context.bounds.right - self.PANEL_SIZE,
@@ -619,7 +619,7 @@ class ProfileListComponent(Component):
                 BoundingRectangle(
                     top=0,
                     left=context.bounds.right - (self.PANEL_SIZE - 1),
-                    bottom=context.bounds.bottom,
+                    bottom=context.bounds.bottom - 1,
                     right=context.bounds.right,
                 )
             ) as panelcontext:
@@ -628,6 +628,16 @@ class ProfileListComponent(Component):
         else:
             # No room for right panel
             self._render_list(context)
+
+        # Draw the horizontal label divider
+        for x in range(context.bounds.width):
+            context.draw_string(
+                context.bounds.height - 1,
+                x,
+                "\u2500" if Settings.enable_unicode else "-",
+                wrap=False,
+            )
+
         self.changed = False
 
     def _render_list(self, context: RenderContext) -> None:
@@ -844,14 +854,14 @@ class TowerListComponent(Component):
             if self.window < 0:
                 self.window = 0
         # Handle scrolling down with some buffer.
-        if (self.cursor + 5) > (self.window + context.bounds.height):
-            self.window = (self.cursor + 5) - context.bounds.height
-            if self.window > (len(self.towers) - context.bounds.height):
-                self.window = len(self.towers) - context.bounds.height
+        if (self.cursor + 5) > (self.window + (context.bounds.height - 1)):
+            self.window = (self.cursor + 5) - (context.bounds.height - 1)
+            if self.window > (len(self.towers) - (context.bounds.height - 1)):
+                self.window = len(self.towers) - (context.bounds.height - 1)
 
         top = self.window
         bottom = min(
-            self.window + context.bounds.height,
+            self.window + context.bounds.height - 1,
             len(self.towers),
         )
         for i in range(top, bottom):
@@ -865,6 +875,15 @@ class TowerListComponent(Component):
                 display = display + " " * (context.bounds.width - len(display))
 
             context.draw_string(i - top, 0, display, invert=(i == self.cursor))
+
+        # Draw the horizontal label divider
+        for x in range(context.bounds.width):
+            context.draw_string(
+                context.bounds.height - 1,
+                x,
+                "\u2500" if Settings.enable_unicode else "-",
+                wrap=False,
+            )
 
         self.changed = False
 
