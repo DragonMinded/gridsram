@@ -1,5 +1,5 @@
 import struct
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, Iterator, Optional, Set, Tuple, cast
 
 
 class ProfileException(Exception):
@@ -360,10 +360,10 @@ class Profile:
         pin += (length & 0x0F) * 1000000000
         length = (length >> 4) & 0x0F
 
-        pin = str(pin)
-        while len(pin) < length:
-            pin = "0" + pin
-        return pin
+        pinstr = str(pin)
+        while len(pinstr) < length:
+            pinstr = "0" + pinstr
+        return pinstr
 
     @pin.setter
     def pin(self, code: str) -> None:
@@ -466,14 +466,14 @@ class Profile:
             return 0
 
         # No setter for this, it doesn't make sense.
-        return struct.unpack(">I", self.data[15:19])[0]
+        return cast(int, struct.unpack(">I", self.data[15:19])[0])
 
     @property
     def highscore(self) -> int:
         if not self.valid:
             return 0
 
-        return struct.unpack(">B", self.data[14:15])[0]
+        return cast(int, struct.unpack(">B", self.data[14:15])[0])
 
     @highscore.setter
     def highscore(self, score: int) -> None:
@@ -485,7 +485,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">B", self.data[37:38])[0]
+        return cast(int, struct.unpack(">B", self.data[37:38])[0])
 
     @streak.setter
     def streak(self, streak: int) -> None:
@@ -497,7 +497,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">I", self.data[19:23])[0]
+        return cast(int, struct.unpack(">I", self.data[19:23])[0])
 
     @totalpoints.setter
     def totalpoints(self, points: int) -> None:
@@ -509,7 +509,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">I", self.data[26:30])[0]
+        return cast(int, struct.unpack(">I", self.data[26:30])[0])
 
     @totalcash.setter
     def totalcash(self, cash: int) -> None:
@@ -521,7 +521,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">H", self.data[24:26])[0]
+        return cast(int, struct.unpack(">H", self.data[24:26])[0])
 
     @totalwins.setter
     def totalwins(self, wins: int) -> None:
@@ -533,7 +533,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">H", self.data[32:34])[0]
+        return cast(int, struct.unpack(">H", self.data[32:34])[0])
 
     @totalplays.setter
     def totalplays(self, plays: int) -> None:
@@ -566,7 +566,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">B", self.data[35:36])[0]
+        return cast(int, struct.unpack(">B", self.data[35:36])[0])
 
     @towerclears.setter
     def towerclears(self, clears: int) -> None:
@@ -577,7 +577,7 @@ class Profile:
         if not self.valid:
             return 0
 
-        return struct.unpack(">B", self.data[30:31])[0]
+        return cast(int, struct.unpack(">B", self.data[30:31])[0])
 
     def _set_control_settings(self, settings: int) -> None:
         self.data = self.data[:30] + struct.pack(">B", settings) + self.data[31:]
@@ -705,10 +705,10 @@ class ProfileCollection:
         # Map this to erasing a profile
         self._profiles[key].clear()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Profile]:
         return iter(self._profiles)
 
-    def __reversed__(self):
+    def __reversed__(self) -> Iterator[Profile]:
         return reversed(self._profiles)
 
 
@@ -722,9 +722,9 @@ class TowerClear:
     @property
     def time(self) -> float:
         vals = struct.unpack(">BB", self.data[0:2])
-        minutes = (vals[0] >> 4) & 0xF
-        tenths = vals[0] & 0xF
-        seconds = vals[1] & 0xFF
+        minutes = (int(vals[0]) >> 4) & 0xF
+        tenths = int(vals[0]) & 0xF
+        seconds = int(vals[1]) & 0xFF
 
         return ((minutes * 60.0) + seconds) + (tenths / 10.0)
 
@@ -863,10 +863,10 @@ class TowerCollection:
         # Map this to erasing a tower best time
         self._towers[key].clear()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[TowerClear]:
         return iter(self._towers)
 
-    def __reversed__(self):
+    def __reversed__(self) -> Iterator[TowerClear]:
         return reversed(self._towers)
 
 

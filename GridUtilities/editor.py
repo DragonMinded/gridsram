@@ -35,6 +35,9 @@ from dragoncurses.settings import Settings
 from profile import Profile, ProfileCollection, SRAM
 
 
+CursesContext = Any
+
+
 Settings.enable_unicode = True
 
 
@@ -912,7 +915,7 @@ def main() -> int:
         )
         sram.clear()
 
-    def wrapped(context) -> None:
+    def wrapped(context: CursesContext) -> None:
         # Run the main program loop
         with loop_config(context):
             loop = MainLoop(
