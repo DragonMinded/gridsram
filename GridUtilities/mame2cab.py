@@ -1,17 +1,19 @@
 #! /usr/bin/env python3
 import argparse
-from proto import SRAMProtocol
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser("Convert a MAME SRAM file to a format compatible for use on a cabinet.")
+    parser = argparse.ArgumentParser(
+        "Convert a MAME SRAM file to a format compatible for use on a cabinet."
+    )
     parser.add_argument(
-        'infile',
+        "infile",
         metavar="INFILE",
         type=str,
         help="File to load for conversion",
     )
     parser.add_argument(
-        'outfile',
+        "outfile",
         metavar="OUTFILE",
         type=str,
         help="File to write after conversion",

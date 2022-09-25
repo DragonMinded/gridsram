@@ -19,7 +19,7 @@ if __name__ == "__main__":
         "Print utility to display The Grid SRAM profiles and tower completion times.",
     )
     parser.add_argument(
-        'file',
+        "file",
         metavar="FILE",
         type=str,
         help="SRAM file to parse and print.",
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     else:
         offset = int(args.offset)
 
-    with open(args.file, 'rb') as fp:
+    with open(args.file, "rb") as fp:
         data = fp.read()
     sram = SRAM(data, is_mame_format=args.mame_compat)
 

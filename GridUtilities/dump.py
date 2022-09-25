@@ -5,24 +5,24 @@ from proto import SRAMProtocol
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Dump utility to read/write SRAM.")
     parser.add_argument(
-        'action',
+        "action",
         metavar="ACTION",
         type=str,
         help="Action to perform, such as 'read' or 'write'.",
     )
     parser.add_argument(
-        'file',
+        "file",
         metavar="FILE",
         type=str,
         help="File to perform action with.",
     )
     parser.add_argument(
-        '--port',
+        "--port",
         metavar="PORT",
         type=str,
         default="/dev/ttyACM0",
-        help="Serial port of the helper Arduino. Defaults " +
-             "to default Arduino port on Linux which is '/dev/ttyACM0'.",
+        help="Serial port of the helper Arduino. Defaults "
+        + "to default Arduino port on Linux which is '/dev/ttyACM0'.",
     )
     parser.add_argument(
         "--offset",
@@ -47,12 +47,12 @@ if __name__ == "__main__":
         length = int(args.length)
 
     sp = SRAMProtocol(args.port)
-    if args.action == 'read':
+    if args.action == "read":
         data = sp.read(offset, length)
-        with open(args.file, 'wb') as fp:
+        with open(args.file, "wb") as fp:
             fp.write(data)
-    elif args.action == 'write':
-        with open(args.file, 'rb') as fp:
+    elif args.action == "write":
+        with open(args.file, "rb") as fp:
             data = fp.read()
         sp.write(offset, data)
     else:

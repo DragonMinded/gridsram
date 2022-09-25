@@ -41,13 +41,20 @@ Settings.enable_unicode = True
 class ClickableTextInputComponent(ClickableComponent, TextInputComponent):
     def __repr__(self) -> str:
         return "ClickableTextInputComponent(text={}, focused={})".format(
-            repr(self.text), "True" if self.focus else "False",
+            repr(self.text),
+            "True" if self.focus else "False",
         )
 
 
 class ClickableSelectInputComponent(ClickableComponent, SelectInputComponent):
     def __repr__(self) -> str:
-        return "ClickableSelectInputComponent(selected={}, options={}, focused={})".format(repr(self.selected), repr(self.options), "True" if self.focus else "False")
+        return (
+            "ClickableSelectInputComponent(selected={}, options={}, focused={})".format(
+                repr(self.selected),
+                repr(self.options),
+                "True" if self.focus else "False",
+            )
+        )
 
 
 class EditProfileComponent(Component):
@@ -82,7 +89,9 @@ class EditProfileComponent(Component):
                 return "assist"
 
         # Set up inputs
-        self.__inputs: List[Union[ClickableTextInputComponent, ClickableSelectInputComponent]] = [
+        self.__inputs: List[
+            Union[ClickableTextInputComponent, ClickableSelectInputComponent]
+        ] = [
             ClickableTextInputComponent(
                 profile.name,
                 max_length=7,
@@ -128,7 +137,7 @@ class EditProfileComponent(Component):
                 str(profile.highscore),
                 max_length=3,
                 allowed_characters="0123456789",
-                focused=False
+                focused=False,
             ).on_click(self.__click_select),
             ClickableTextInputComponent(
                 str(profile.totalcash),
@@ -177,9 +186,9 @@ class EditProfileComponent(Component):
                 PaddingComponent(
                     StickyComponent(
                         LabelComponent(
-                            "<invert> up/down - select input </invert> " +
-                            "<invert> enter - save changes and close </invert> " +
-                            "<invert> esc - discard changes and close </invert>",
+                            "<invert> up/down - select input </invert> "
+                            + "<invert> enter - save changes and close </invert> "
+                            + "<invert> esc - discard changes and close </invert>",
                             formatted=True,
                         ),
                         StickyComponent(
@@ -224,7 +233,8 @@ class EditProfileComponent(Component):
                     horizontalpadding=1,
                 ),
                 style=(
-                    BorderComponent.DOUBLE if Settings.enable_unicode
+                    BorderComponent.DOUBLE
+                    if Settings.enable_unicode
                     else BorderComponent.SOLID
                 ),
             ),
@@ -235,7 +245,9 @@ class EditProfileComponent(Component):
         self.__save_callback = callback
         return self
 
-    def on_cancel(self, callback: Optional[Callable[[], None]]) -> "EditProfileComponent":
+    def on_cancel(
+        self, callback: Optional[Callable[[], None]]
+    ) -> "EditProfileComponent":
         self.__cancel_callback = callback
         return self
 
@@ -330,7 +342,9 @@ class EditProfileComponent(Component):
         return None
 
     def __validate_highscore(self) -> Optional[str]:
-        highscore = cast(ClickableTextInputComponent, self.__inputs[self.HIGHSCORE]).text
+        highscore = cast(
+            ClickableTextInputComponent, self.__inputs[self.HIGHSCORE]
+        ).text
 
         if len(highscore) < 1:
             return "Must be at least one digit!"
@@ -350,7 +364,9 @@ class EditProfileComponent(Component):
         return None
 
     def __validate_towerposition(self) -> Optional[str]:
-        towerposition = cast(ClickableTextInputComponent, self.__inputs[self.TOWERPOSITION]).text
+        towerposition = cast(
+            ClickableTextInputComponent, self.__inputs[self.TOWERPOSITION]
+        ).text
 
         if len(towerposition.split(",")) != 2:
             return "Must be in the form <tower>, <level>!"
@@ -364,7 +380,9 @@ class EditProfileComponent(Component):
         return None
 
     def __validate_towerclears(self) -> Optional[str]:
-        towerclears = cast(ClickableTextInputComponent, self.__inputs[self.TOWERCLEARS]).text
+        towerclears = cast(
+            ClickableTextInputComponent, self.__inputs[self.TOWERCLEARS]
+        ).text
 
         if len(towerclears) < 1:
             return "Must be at least one digit!"
@@ -389,44 +407,85 @@ class EditProfileComponent(Component):
             # Handle return/esc keys to save/cancel input
             if event.character == Keys.ENTER:
                 if self.__validate():
-                    self.profile.name = cast(ClickableTextInputComponent, self.__inputs[self.NAME]).text
-                    self.profile.pin = cast(ClickableTextInputComponent, self.__inputs[self.PIN]).text
-                    callsign = cast(ClickableSelectInputComponent, self.__inputs[self.CALLSIGN]).selected
-                    self.profile.callsign = None if callsign == "No Call Sign" else callsign
+                    self.profile.name = cast(
+                        ClickableTextInputComponent, self.__inputs[self.NAME]
+                    ).text
+                    self.profile.pin = cast(
+                        ClickableTextInputComponent, self.__inputs[self.PIN]
+                    ).text
+                    callsign = cast(
+                        ClickableSelectInputComponent, self.__inputs[self.CALLSIGN]
+                    ).selected
+                    self.profile.callsign = (
+                        None if callsign == "No Call Sign" else callsign
+                    )
                     self.profile.totalwins = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.TOTALWINS]).text,
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.TOTALWINS]
+                        ).text,
                     )
                     self.profile.totalplays = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.TOTALPLAYS]).text,
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.TOTALPLAYS]
+                        ).text,
                     )
                     self.profile.totalpoints = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.TOTALPOINTS]).text,
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.TOTALPOINTS]
+                        ).text,
                     )
                     self.profile.streak = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.STREAK]).text,
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.STREAK]
+                        ).text,
                     )
                     self.profile.highscore = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.HIGHSCORE]).text,
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.HIGHSCORE]
+                        ).text,
                     )
                     self.profile.totalcash = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.TOTALCASH]).text
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.TOTALCASH]
+                        ).text
                     )
-                    tower, level = (
-                        cast(ClickableTextInputComponent, self.__inputs[self.TOWERPOSITION]).text.split(',')
-                    )
+                    tower, level = cast(
+                        ClickableTextInputComponent, self.__inputs[self.TOWERPOSITION]
+                    ).text.split(",")
                     self.profile.towerposition = (
-                        int(tower.strip()), int(level.strip())
+                        int(tower.strip()),
+                        int(level.strip()),
                     )
                     self.profile.towerclears = int(
-                        cast(ClickableTextInputComponent, self.__inputs[self.TOWERCLEARS]).text
+                        cast(
+                            ClickableTextInputComponent, self.__inputs[self.TOWERCLEARS]
+                        ).text
                     )
-                    if cast(ClickableSelectInputComponent, self.__inputs[self.CONTROLMODE]).selected == "assist":
+                    if (
+                        cast(
+                            ClickableSelectInputComponent,
+                            self.__inputs[self.CONTROLMODE],
+                        ).selected
+                        == "assist"
+                    ):
                         self.profile.freelook = False
                         self.profile.invertaim = False
-                    elif cast(ClickableSelectInputComponent, self.__inputs[self.CONTROLMODE]).selected == "free look":
+                    elif (
+                        cast(
+                            ClickableSelectInputComponent,
+                            self.__inputs[self.CONTROLMODE],
+                        ).selected
+                        == "free look"
+                    ):
                         self.profile.freelook = True
                         self.profile.invertaim = False
-                    elif cast(ClickableSelectInputComponent, self.__inputs[self.CONTROLMODE]).selected == "free + inverted":
+                    elif (
+                        cast(
+                            ClickableSelectInputComponent,
+                            self.__inputs[self.CONTROLMODE],
+                        ).selected
+                        == "free + inverted"
+                    ):
                         self.profile.freelook = True
                         self.profile.invertaim = True
                     else:
@@ -468,7 +527,9 @@ class EditProfileComponent(Component):
         return True
 
     def __repr__(self) -> str:
-        return "EditProfileComponent({})".format(", ".join(str(i) for i in self.__inputs))
+        return "EditProfileComponent({})".format(
+            ", ".join(str(i) for i in self.__inputs)
+        )
 
 
 class ProfileListComponent(Component):
@@ -509,9 +570,7 @@ class ProfileListComponent(Component):
         for profile in self.profiles:
             if not profile.valid:
                 return profile
-        raise Exception(
-            "Could not find a spot to add a new profile!"
-        )
+        raise Exception("Could not find a spot to add a new profile!")
 
     def _current_profile(self) -> Profile:
         return self._profile_at(self.cursor)
@@ -527,15 +586,10 @@ class ProfileListComponent(Component):
                     self.__profcache[pos] = i
                     return profile
                 cnt += 1
-        raise Exception(
-            "Logic error, somehow let the cursor get out of bounds!"
-        )
+        raise Exception("Logic error, somehow let the cursor get out of bounds!")
 
     def render(self, context: RenderContext) -> None:
-        if (
-            context.bounds.width > self.PANEL_SIZE and
-            self._valid_profiles() > 0
-        ):
+        if context.bounds.width > self.PANEL_SIZE and self._valid_profiles() > 0:
             # Make room for right panel
             with context.clip(
                 BoundingRectangle(
@@ -594,7 +648,9 @@ class ProfileListComponent(Component):
         )
         for i in range(top, bottom):
             profile = self._profile_at(i)
-            display = " " + profile.name + " (" + (profile.callsign or "No Call Sign") + ")"
+            display = (
+                " " + profile.name + " (" + (profile.callsign or "No Call Sign") + ")"
+            )
             if len(display) < context.bounds.width:
                 display = display + " " * (context.bounds.width - len(display))
 
@@ -630,8 +686,8 @@ class ProfileListComponent(Component):
     def __add_new_profile(self) -> None:
         self.scene.register_component(
             EditProfileComponent(self._new_profile()).on_save(
-                    self.__invalidate_and_recount
-                )
+                self.__invalidate_and_recount
+            )
         )
 
     def __delete_current_profile(self) -> None:
@@ -677,14 +733,18 @@ class ProfileListComponent(Component):
                 return True
             if event.character == Keys.PGDN:
                 if self._valid_profiles() > 0:
-                    self.cursor += self.location.height if self.location is not None else 1
+                    self.cursor += (
+                        self.location.height if self.location is not None else 1
+                    )
                     if self.cursor >= self._valid_profiles():
                         self.cursor = self._valid_profiles() - 1
                     self.changed = True
                 return True
             if event.character == Keys.PGUP:
                 if self._valid_profiles() > 0:
-                    self.cursor -= self.location.height if self.location is not None else 1
+                    self.cursor -= (
+                        self.location.height if self.location is not None else 1
+                    )
                     if self.cursor < 0:
                         self.cursor = 0
                     self.changed = True
@@ -692,10 +752,7 @@ class ProfileListComponent(Component):
         if isinstance(event, MouseInputEvent):
             if self.location is not None:
                 xposition = event.x - self.location.left
-                if (
-                    self.location.width > self.PANEL_SIZE and
-                    self._valid_profiles() > 0
-                ):
+                if self.location.width > self.PANEL_SIZE and self._valid_profiles() > 0:
                     xmax = self.location.width - self.PANEL_SIZE
                 else:
                     xmax = self.location.width
@@ -708,9 +765,9 @@ class ProfileListComponent(Component):
                             self.changed = True
                             if event.button == Buttons.LEFT:
                                 if (
-                                    self.__last_click[0] == event.y and
-                                    self.__last_click[1] == event.x and
-                                    (time.time() - self.__last_click[2]) <= 1.0
+                                    self.__last_click[0] == event.y
+                                    and self.__last_click[1] == event.x
+                                    and (time.time() - self.__last_click[2]) <= 1.0
                                 ):
                                     # A double click!
                                     self.__last_click = (-1, -1, -1.0)
@@ -720,13 +777,28 @@ class ProfileListComponent(Component):
                             if event.button == Buttons.RIGHT:
                                 menu = PopoverMenuComponent(
                                     [
-                                        ('&Edit This Profile', lambda menuentry, option: self.__edit_current_profile()),
-                                        ('&Delete This Profile', lambda menuentry, option: self.__delete_current_profile()),
-                                        ('-', None),
-                                        ('&Add New Profile', lambda menuentry, option: self.__add_new_profile()),
+                                        (
+                                            "&Edit This Profile",
+                                            lambda menuentry, option: self.__edit_current_profile(),
+                                        ),
+                                        (
+                                            "&Delete This Profile",
+                                            lambda menuentry, option: self.__delete_current_profile(),
+                                        ),
+                                        ("-", None),
+                                        (
+                                            "&Add New Profile",
+                                            lambda menuentry, option: self.__add_new_profile(),
+                                        ),
                                     ],
                                 )
-                                self.register(menu, menu.bounds.offset(event.y - self.location.top, event.x - self.location.left))
+                                self.register(
+                                    menu,
+                                    menu.bounds.offset(
+                                        event.y - self.location.top,
+                                        event.x - self.location.left,
+                                    ),
+                                )
                     return True
         if isinstance(event, ScrollInputEvent):
             if event.direction == Directions.UP:
@@ -751,21 +823,21 @@ class ProfileListComponent(Component):
 
 
 class ListProfilesScene(Scene):
-
     def create(self) -> Component:
         return StickyComponent(
             LabelComponent(
-                "<invert> up/down - select profile </invert> " +
-                "<invert> enter - edit selected profile </invert> " +
-                "<invert> a - add new profile </invert> " +
-                "<invert> d - delete selected profile </invert> " +
-                "<invert> esc/q - quit </invert>",
+                "<invert> up/down - select profile </invert> "
+                + "<invert> enter - edit selected profile </invert> "
+                + "<invert> a - add new profile </invert> "
+                + "<invert> d - delete selected profile </invert> "
+                + "<invert> esc/q - quit </invert>",
                 formatted=True,
             ),
             BorderComponent(
-                ProfileListComponent(self.settings['sram'].profiles),
+                ProfileListComponent(self.settings["sram"].profiles),
                 style=(
-                    BorderComponent.SINGLE if Settings.enable_unicode
+                    BorderComponent.SINGLE
+                    if Settings.enable_unicode
                     else BorderComponent.ASCII
                 ),
             ),
@@ -774,27 +846,27 @@ class ListProfilesScene(Scene):
         )
 
     def save_profiles(self) -> None:
-        with open(self.settings['file'], 'wb') as fp:
-            fp.write(self.settings['sram'].data)
+        with open(self.settings["file"], "wb") as fp:
+            fp.write(self.settings["sram"].data)
         self.main_loop.exit()
 
     def handle_input(self, event: InputEvent) -> bool:
         if isinstance(event, KeyboardInputEvent):
-            if event.character in [Keys.ESCAPE, 'q']:
+            if event.character in [Keys.ESCAPE, "q"]:
                 self.register_component(
                     DialogBoxComponent(
-                        'Write back changes to SRAM file?',
+                        "Write back changes to SRAM file?",
                         [
                             (
-                                '&Yes',
+                                "&Yes",
                                 lambda c, o: self.save_profiles(),
                             ),
                             (
-                                '&No',
+                                "&No",
                                 lambda c, o: self.main_loop.exit(),
                             ),
                             (
-                                '&Cancel',
+                                "&Cancel",
                                 lambda c, o: self.unregister_component(c),
                             ),
                         ],
@@ -845,12 +917,12 @@ def main() -> int:
         with loop_config(context):
             loop = MainLoop(
                 context,
-                {'file': args.file, 'sram': sram},
+                {"file": args.file, "sram": sram},
             )
             loop.change_scene(ListProfilesScene)
             loop.run()
 
-    os.environ.setdefault('ESCDELAY', '0')
+    os.environ.setdefault("ESCDELAY", "0")
     curses.wrapper(wrapped)
 
     return 0

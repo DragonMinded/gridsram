@@ -8,7 +8,7 @@ class ProfileException(Exception):
 
 def truncate_name(name: str) -> str:
     for i in range(len(name)):
-        if name[i] == '\x00':
+        if name[i] == "\x00":
             return name[:i]
     return name
 
@@ -307,7 +307,9 @@ class Profile:
             raise Exception("Invalid profile length!")
         self.data: bytes = data
         self.callsigns: Set[str] = {k for k in self.__NAME_TO_CALLSIGN if k is not None}
-        self.__call_lut: Dict[int, Optional[str]] = {v: k for k, v in self.__NAME_TO_CALLSIGN.items()}
+        self.__call_lut: Dict[int, Optional[str]] = {
+            v: k for k, v in self.__NAME_TO_CALLSIGN.items()
+        }
 
         # There is a single byte in position 23 that the game always writes
         # a 0 to. This used to be a profile 'in use' flag but the game no
@@ -355,7 +357,7 @@ class Profile:
 
         # The top digit is stored not as the missing bits, but as the actual
         # last digit. Bleh.
-        pin += ((length & 0x0F) * 1000000000)
+        pin += (length & 0x0F) * 1000000000
         length = (length >> 4) & 0x0F
 
         pin = str(pin)
@@ -389,10 +391,16 @@ class Profile:
 
         vals = struct.unpack(">ssssssss", self.data[5:13])
         namestr = (
-            vals[3] + vals[2] + vals[1] + vals[0] +
-            vals[7] + vals[6] + vals[5] + vals[4]
+            vals[3]
+            + vals[2]
+            + vals[1]
+            + vals[0]
+            + vals[7]
+            + vals[6]
+            + vals[5]
+            + vals[4]
         )
-        return truncate_name(namestr.decode('ascii'))
+        return truncate_name(namestr.decode("ascii"))
 
     @name.setter
     def name(self, newname: str) -> None:
@@ -401,23 +409,25 @@ class Profile:
         for char in newname:
             if char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ":
                 raise ProfileException("Invalid name character!")
-        namebytes = newname.encode('ascii')
+        namebytes = newname.encode("ascii")
         while len(namebytes) < 8:
             namebytes = namebytes + b"\0"
 
         self.data = (
-            self.data[:5] +
-            bytes([
-                namebytes[3],
-                namebytes[2],
-                namebytes[1],
-                namebytes[0],
-                namebytes[7],
-                namebytes[6],
-                namebytes[5],
-                namebytes[4],
-            ]) +
-            self.data[13:]
+            self.data[:5]
+            + bytes(
+                [
+                    namebytes[3],
+                    namebytes[2],
+                    namebytes[1],
+                    namebytes[0],
+                    namebytes[7],
+                    namebytes[6],
+                    namebytes[5],
+                    namebytes[4],
+                ]
+            )
+            + self.data[13:]
         )
         self._update_checksum()
 
@@ -442,11 +452,11 @@ class Profile:
         callint = self.__NAME_TO_CALLSIGN[callsign]
 
         self.data = (
-            self.data[:13] +
-            struct.pack(">B", callint & 0xFF) +
-            self.data[14:36] +
-            struct.pack(">B", (callint >> 8) & 0xFF) +
-            self.data[37:]
+            self.data[:13]
+            + struct.pack(">B", callint & 0xFF)
+            + self.data[14:36]
+            + struct.pack(">B", (callint >> 8) & 0xFF)
+            + self.data[37:]
         )
         self._update_checksum()
 
@@ -548,11 +558,7 @@ class Profile:
         if tower < 1 or tower > 10:
             raise ProfileException("Invalid tower value")
         posbyte = (((tower - 1) & 0xF) << 4) | ((level - 1) & 0xF)
-        self.data = (
-            self.data[:34] +
-            struct.pack(">B", posbyte) +
-            self.data[35:]
-        )
+        self.data = self.data[:34] + struct.pack(">B", posbyte) + self.data[35:]
         self._update_checksum()
 
     @property
@@ -574,11 +580,7 @@ class Profile:
         return struct.unpack(">B", self.data[30:31])[0]
 
     def _set_control_settings(self, settings: int) -> None:
-        self.data = (
-            self.data[:30] +
-            struct.pack(">B", settings) +
-            self.data[31:]
-        )
+        self.data = self.data[:30] + struct.pack(">B", settings) + self.data[31:]
         self._update_checksum()
 
     @property
@@ -617,7 +619,7 @@ class Profile:
             return title + ": " + str(content)
 
         def format_cash(cash: int) -> str:
-            cashstr = '$' + str(cash)
+            cashstr = "$" + str(cash)
             if cash >= 1000:
                 # At least 1000 dollars, lets put a comma
                 cashstr = cashstr[:-3] + "," + cashstr[-3:]
@@ -636,29 +638,32 @@ class Profile:
             else:
                 return "assist"
 
-        return "\n".join([
-            line("Name", self.name),
-            line("Pin Code", self.pin),
-            line("Call Sign", self.callsign),
-            line("Age", self.age),
-            line("Games Won", self.totalwins),
-            line("Games Played", self.totalplays),
-            line(
-                "Win Percentage",
-                str(int((self.totalwins * 100) / self.totalplays)) + '%'
-                if self.totalplays > 0 else '0%',
-            ),
-            line("Total Points", self.totalpoints),
-            line("Longest Streak", self.streak),
-            line("High Score", self.highscore),
-            line("Total Cash", format_cash(self.totalcash)),
-            line("Tower Progress", format_tower(self.towerposition)),
-            line("Tower Clears", self.towerclears),
-            line(
-                "Control Mode",
-                format_controls(self.freelook, self.invertaim),
-            )
-        ])
+        return "\n".join(
+            [
+                line("Name", self.name),
+                line("Pin Code", self.pin),
+                line("Call Sign", self.callsign),
+                line("Age", self.age),
+                line("Games Won", self.totalwins),
+                line("Games Played", self.totalplays),
+                line(
+                    "Win Percentage",
+                    str(int((self.totalwins * 100) / self.totalplays)) + "%"
+                    if self.totalplays > 0
+                    else "0%",
+                ),
+                line("Total Points", self.totalpoints),
+                line("Longest Streak", self.streak),
+                line("High Score", self.highscore),
+                line("Total Cash", format_cash(self.totalcash)),
+                line("Tower Progress", format_tower(self.towerposition)),
+                line("Tower Clears", self.towerclears),
+                line(
+                    "Control Mode",
+                    format_controls(self.freelook, self.invertaim),
+                ),
+            ]
+        )
 
 
 class ProfileCollection:
@@ -667,7 +672,7 @@ class ProfileCollection:
             raise ProfileException("Invalid profile chunk!")
 
         def read_profile(chunk: bytes, spot: int) -> Profile:
-            return Profile(chunk[(86 * spot):][:86])
+            return Profile(chunk[(86 * spot) :][:86])
 
         self._profiles = [read_profile(data, spot) for spot in range(0, 1500)]
 
@@ -730,18 +735,24 @@ class TowerClear:
         tenths = round((newval - int(newval)) * 10.0)
 
         self.data = (
-            struct.pack(">BB", (minutes & 0xF) << 4 | (tenths & 0xF), seconds) +
-            self.data[2:]
+            struct.pack(">BB", (minutes & 0xF) << 4 | (tenths & 0xF), seconds)
+            + self.data[2:]
         )
 
     @property
     def name(self) -> str:
         vals = struct.unpack(">ssssssss", self.data[2:10])
         namestr = (
-            vals[3] + vals[2] + vals[1] + vals[0] +
-            vals[7] + vals[6] + vals[5] + vals[4]
+            vals[3]
+            + vals[2]
+            + vals[1]
+            + vals[0]
+            + vals[7]
+            + vals[6]
+            + vals[5]
+            + vals[4]
         )
-        return truncate_name(namestr.decode('ascii'))
+        return truncate_name(namestr.decode("ascii"))
 
     @name.setter
     def name(self, newname: str) -> None:
@@ -750,13 +761,12 @@ class TowerClear:
         for char in newname:
             if char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ":
                 raise ProfileException("Invalid name character!")
-        namebytes = newname.encode('ascii')
+        namebytes = newname.encode("ascii")
         while len(namebytes) < 8:
             namebytes = namebytes + b"\0"
 
-        self.data = (
-            self.data[:2] +
-            bytes([
+        self.data = self.data[:2] + bytes(
+            [
                 namebytes[3],
                 namebytes[2],
                 namebytes[1],
@@ -765,7 +775,7 @@ class TowerClear:
                 namebytes[6],
                 namebytes[5],
                 namebytes[4],
-            ])
+            ]
         )
 
     def clear(self) -> None:
@@ -803,10 +813,12 @@ class TowerClear:
             tenths = round((time - int(time)) * 10.0)
             return f"{minutes}:{seconds:02d}.{tenths}"
 
-        return "\n".join([
-            line("Name", self.name),
-            line("Clear Time", format_time(self.time)),
-        ])
+        return "\n".join(
+            [
+                line("Name", self.name),
+                line("Clear Time", format_time(self.time)),
+            ]
+        )
 
 
 class TowerCollection:
@@ -817,7 +829,7 @@ class TowerCollection:
         def read_tower(chunk: bytes, spot: int) -> TowerClear:
             tower = int(spot / 6)
             level = spot % 6
-            return TowerClear(chunk[(10 * spot):][:10], (tower + 1, level + 1))
+            return TowerClear(chunk[(10 * spot) :][:10], (tower + 1, level + 1))
 
         # There are 10 towers with 6 levels each.
         self._towers = [read_tower(data, spot) for spot in range(0, 10 * 6)]

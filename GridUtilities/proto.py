@@ -32,7 +32,7 @@ class SRAMProtocol:
         self.__serial.timeout = None
 
     def __available(self) -> bool:
-        self.__serial.write(b'SRAMS')
+        self.__serial.write(b"SRAMS")
         self.__serial.flush()
         try:
             self.__check_return()
@@ -42,17 +42,17 @@ class SRAMProtocol:
 
     def __check_return(self) -> None:
         resp = self.__serial.read(size=2)
-        if resp == b'OK':
+        if resp == b"OK":
             return
-        if resp != b'NG':
-            raise Exception('Unexpected return from Arduino!')
+        if resp != b"NG":
+            raise Exception("Unexpected return from Arduino!")
 
         # Read error until we get null byte
-        error = b''
+        error = b""
         while True:
             val = self.__serial.read(size=1)
-            if val == b'\00':
-                raise Exception(error.decode('utf-8'))
+            if val == b"\00":
+                raise Exception(error.decode("utf-8"))
             error = error + val
 
     def __check_continue(self) -> None:
@@ -61,28 +61,28 @@ class SRAMProtocol:
             resp += self.__serial.read(size=2)
             if len(resp) < 2:
                 continue
-            if resp == b'CO':
+            if resp == b"CO":
                 return
-            if resp == b'NG':
+            if resp == b"NG":
                 # Read error until we get null byte
-                error = b''
+                error = b""
                 while True:
                     val = self.__serial.read(size=1)
-                    if val == b'\00':
-                        raise Exception(error.decode('utf-8'))
+                    if val == b"\00":
+                        raise Exception(error.decode("utf-8"))
                     error = error + val
 
             # Unrecognized input
-            raise Exception('Unexpected return from Arduino!')
+            raise Exception("Unexpected return from Arduino!")
 
     def write(self, address: int, data: bytes) -> None:
         start = address
         end = address + len(data)
 
-        self.__serial.write(b'SRAMW')
+        self.__serial.write(b"SRAMW")
         self.__serial.write(
             struct.pack(
-                '@BBB',
+                "@BBB",
                 (start >> 16) & 0xFF,
                 (start >> 8) & 0xFF,
                 start & 0xFF,
@@ -90,7 +90,7 @@ class SRAMProtocol:
         )
         self.__serial.write(
             struct.pack(
-                '@BBB',
+                "@BBB",
                 (end >> 16) & 0xFF,
                 (end >> 8) & 0xFF,
                 end & 0xFF,
@@ -100,9 +100,9 @@ class SRAMProtocol:
         # Send in chunks
         while len(data) > 0:
             self.__check_continue()
-            self.__serial.write(data[:self.CONTINUATION_RUN_WRITE])
+            self.__serial.write(data[: self.CONTINUATION_RUN_WRITE])
             self.__serial.flush()
-            data = data[self.CONTINUATION_RUN_WRITE:]
+            data = data[self.CONTINUATION_RUN_WRITE :]
 
         self.__check_return()
 
@@ -110,10 +110,10 @@ class SRAMProtocol:
         start = address
         end = address + length
 
-        self.__serial.write(b'SRAMR')
+        self.__serial.write(b"SRAMR")
         self.__serial.write(
             struct.pack(
-                '@BBB',
+                "@BBB",
                 (start >> 16) & 0xFF,
                 (start >> 8) & 0xFF,
                 start & 0xFF,
@@ -121,7 +121,7 @@ class SRAMProtocol:
         )
         self.__serial.write(
             struct.pack(
-                '@BBB',
+                "@BBB",
                 (end >> 16) & 0xFF,
                 (end >> 8) & 0xFF,
                 end & 0xFF,
@@ -131,11 +131,13 @@ class SRAMProtocol:
         self.__check_continue()
 
         # Send in chunks
-        data = b''
+        data = b""
         while len(data) < length:
-            self.__serial.write(b'CO')
+            self.__serial.write(b"CO")
             self.__serial.flush()
-            data = data + self.__serial.read(size=min(self.CONTINUATION_RUN_READ, length - len(data)))
+            data = data + self.__serial.read(
+                size=min(self.CONTINUATION_RUN_READ, length - len(data))
+            )
 
         self.__check_return()
         return data
