@@ -708,10 +708,11 @@ class ProfileCollection:
 
 
 class TowerClear:
-    def __init__(self, data: bytes) -> None:
+    def __init__(self, data: bytes, tower: Tuple[int, int]) -> None:
         if len(data) != 10:
             raise Exception("Invalid tower clear length!")
         self.data: bytes = data
+        self._tower: Tuple[int, int] = tower
 
     @property
     def time(self) -> float:
@@ -770,7 +771,27 @@ class TowerClear:
     def clear(self) -> None:
         self.data = b"\x00" * 10
         self.name = "MIDWAY"
-        self.time = 115.0
+        if self._tower in {
+            (1, 6),
+            (2, 6),
+            (4, 1),
+            (4, 2),
+            (4, 3),
+            (4, 4),
+            (4, 5),
+            (4, 6),
+            (6, 1),
+            (6, 2),
+            (7, 1),
+            (7, 2),
+            (7, 3),
+            (7, 4),
+            (7, 5),
+            (7, 6),
+        }:
+            self.time = 55.0
+        else:
+            self.time = 115.0
 
     def __str__(self) -> str:
         def line(title: str, content: object) -> str:
@@ -794,7 +815,9 @@ class TowerCollection:
             raise ProfileException("Invalid tower chunk!")
 
         def read_tower(chunk: bytes, spot: int) -> TowerClear:
-            return TowerClear(chunk[(10 * spot):][:10])
+            tower = int(spot / 6)
+            level = spot % 6
+            return TowerClear(chunk[(10 * spot):][:10], (tower + 1, level + 1))
 
         # There are 10 towers with 6 levels each.
         self._towers = [read_tower(data, spot) for spot in range(0, 10 * 6)]
