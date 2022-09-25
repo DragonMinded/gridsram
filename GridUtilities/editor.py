@@ -4,10 +4,11 @@ import curses
 import os
 import sys
 import time
-from typing import Any, Callable, Dict, List, Optional, Union, cast
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 from dragoncurses.component import (
     Component,
+    DeferredInput,
     LabelComponent,
     BorderComponent,
     DialogBoxComponent,
@@ -59,6 +60,39 @@ class ClickableSelectInputComponent(ClickableComponent, SelectInputComponent):
                 "True" if self.focus else "False",
             )
         )
+
+
+ClickableLabelComponentT = TypeVar(
+    "ClickableLabelComponentT", bound="ClickableLabelComponent"
+)
+
+
+class ClickableLabelComponent(LabelComponent):
+
+    callback: Optional[Callable[[Component, MouseInputEvent], bool]] = None
+
+    def on_click(
+        self: ClickableLabelComponentT,
+        callback: Callable[[Component, MouseInputEvent], bool],
+    ) -> ClickableLabelComponentT:
+        self.callback = callback
+        return self
+
+    def handle_input(self, event: "InputEvent") -> Union[bool, DeferredInput]:
+        # Overrides handle_input instead of _handle_input because this is
+        # meant to be used as either a mixin. This handles input entirely,
+        # instead of intercepting it, so thus overriding the public function.
+        if isinstance(event, MouseInputEvent):
+            if self.callback is not None:
+                handled = self.callback(self, event)
+                # Fall through to default if the callback didn't handle.
+                if bool(handled):
+                    return handled
+            else:
+                # We still handled this regardless of notification
+                return True
+
+        return super().handle_input(event)
 
 
 class EditProfileComponent(Component):
@@ -189,12 +223,12 @@ class EditProfileComponent(Component):
             BorderComponent(
                 PaddingComponent(
                     StickyComponent(
-                        LabelComponent(
+                        ClickableLabelComponent(
                             "<invert> up/down - select input </invert> "
                             + "<invert> enter - save changes and close </invert> "
                             + "<invert> esc - discard changes and close </invert>",
                             formatted=True,
-                        ),
+                        ).on_click(self.__handle_label_click),
                         StickyComponent(
                             ListComponent(
                                 [
@@ -406,99 +440,113 @@ class EditProfileComponent(Component):
         # the select option dialog.
         return False
 
+    def __handle_label_click(
+        self, component: Component, event: MouseInputEvent
+    ) -> bool:
+        # This is hacky, we really should define a component and just handle click
+        # events without checking position. However, I don't want to work on a
+        # list component that sizes each entry to the entry's width/height so instead
+        # I just check the mouse position.
+        if event.button == Buttons.LEFT:
+            location = component.location
+            if location is not None:
+                click_x = event.x - location.left
+                click_y = event.y - location.top
+
+                if click_y == 0:
+                    if click_x >= 25 and click_x <= 56:
+                        if self.__validate():
+                            self.__save_and_close()
+                        return True
+
+                    if click_x >= 58 and click_x <= 90:
+                        if self.__cancel_callback:
+                            self.__cancel_callback()
+                        self.scene.unregister_component(self)
+                        return True
+
+        return False
+
+    def __save_and_close(self) -> None:
+        self.profile.name = cast(
+            ClickableTextInputComponent, self.__inputs[self.NAME]
+        ).text
+        self.profile.pin = cast(
+            ClickableTextInputComponent, self.__inputs[self.PIN]
+        ).text
+        callsign = cast(
+            ClickableSelectInputComponent, self.__inputs[self.CALLSIGN]
+        ).selected
+        self.profile.callsign = None if callsign == "No Call Sign" else callsign
+        self.profile.totalwins = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.TOTALWINS]).text,
+        )
+        self.profile.totalplays = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.TOTALPLAYS]).text,
+        )
+        self.profile.totalpoints = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.TOTALPOINTS]).text,
+        )
+        self.profile.streak = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.STREAK]).text,
+        )
+        self.profile.highscore = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.HIGHSCORE]).text,
+        )
+        self.profile.totalcash = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.TOTALCASH]).text
+        )
+        tower, level = cast(
+            ClickableTextInputComponent, self.__inputs[self.TOWERPOSITION]
+        ).text.split(",")
+        self.profile.towerposition = (
+            int(tower.strip()),
+            int(level.strip()),
+        )
+        self.profile.towerclears = int(
+            cast(ClickableTextInputComponent, self.__inputs[self.TOWERCLEARS]).text
+        )
+        if (
+            cast(
+                ClickableSelectInputComponent,
+                self.__inputs[self.CONTROLMODE],
+            ).selected
+            == "assist"
+        ):
+            self.profile.freelook = False
+            self.profile.invertaim = False
+        elif (
+            cast(
+                ClickableSelectInputComponent,
+                self.__inputs[self.CONTROLMODE],
+            ).selected
+            == "free look"
+        ):
+            self.profile.freelook = True
+            self.profile.invertaim = False
+        elif (
+            cast(
+                ClickableSelectInputComponent,
+                self.__inputs[self.CONTROLMODE],
+            ).selected
+            == "free + inverted"
+        ):
+            self.profile.freelook = True
+            self.profile.invertaim = True
+        else:
+            raise Exception("Logic error, unrecognized option!")
+        if not self.profile.valid:
+            raise Exception("Logic error, profile must be valid on save!")
+        if self.__save_callback:
+            self.__save_callback()
+        self.scene.unregister_component(self)
+
     def handle_input(self, event: "InputEvent") -> bool:
         if isinstance(event, KeyboardInputEvent):
             # Handle return/esc keys to save/cancel input
             if event.character == Keys.ENTER:
                 if self.__validate():
-                    self.profile.name = cast(
-                        ClickableTextInputComponent, self.__inputs[self.NAME]
-                    ).text
-                    self.profile.pin = cast(
-                        ClickableTextInputComponent, self.__inputs[self.PIN]
-                    ).text
-                    callsign = cast(
-                        ClickableSelectInputComponent, self.__inputs[self.CALLSIGN]
-                    ).selected
-                    self.profile.callsign = (
-                        None if callsign == "No Call Sign" else callsign
-                    )
-                    self.profile.totalwins = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.TOTALWINS]
-                        ).text,
-                    )
-                    self.profile.totalplays = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.TOTALPLAYS]
-                        ).text,
-                    )
-                    self.profile.totalpoints = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.TOTALPOINTS]
-                        ).text,
-                    )
-                    self.profile.streak = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.STREAK]
-                        ).text,
-                    )
-                    self.profile.highscore = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.HIGHSCORE]
-                        ).text,
-                    )
-                    self.profile.totalcash = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.TOTALCASH]
-                        ).text
-                    )
-                    tower, level = cast(
-                        ClickableTextInputComponent, self.__inputs[self.TOWERPOSITION]
-                    ).text.split(",")
-                    self.profile.towerposition = (
-                        int(tower.strip()),
-                        int(level.strip()),
-                    )
-                    self.profile.towerclears = int(
-                        cast(
-                            ClickableTextInputComponent, self.__inputs[self.TOWERCLEARS]
-                        ).text
-                    )
-                    if (
-                        cast(
-                            ClickableSelectInputComponent,
-                            self.__inputs[self.CONTROLMODE],
-                        ).selected
-                        == "assist"
-                    ):
-                        self.profile.freelook = False
-                        self.profile.invertaim = False
-                    elif (
-                        cast(
-                            ClickableSelectInputComponent,
-                            self.__inputs[self.CONTROLMODE],
-                        ).selected
-                        == "free look"
-                    ):
-                        self.profile.freelook = True
-                        self.profile.invertaim = False
-                    elif (
-                        cast(
-                            ClickableSelectInputComponent,
-                            self.__inputs[self.CONTROLMODE],
-                        ).selected
-                        == "free + inverted"
-                    ):
-                        self.profile.freelook = True
-                        self.profile.invertaim = True
-                    else:
-                        raise Exception("Logic error, unrecognized option!")
-                    if not self.profile.valid:
-                        raise Exception("Logic error, profile must be valid on save!")
-                    if self.__save_callback:
-                        self.__save_callback()
-                    self.scene.unregister_component(self)
+                    self.__save_and_close()
                 return True
             if event.character == Keys.ESCAPE:
                 if self.__cancel_callback:
@@ -994,14 +1042,14 @@ class SRAMEditorScene(Scene):
                 (
                     "&Profiles",
                     StickyComponent(
-                        LabelComponent(
+                        ClickableLabelComponent(
                             "<invert> up/down - select profile </invert> "
                             + "<invert> enter - edit selected profile </invert> "
                             + "<invert> a - add new profile </invert> "
                             + "<invert> d - delete selected profile </invert> "
                             + "<invert> esc/q - quit </invert>",
                             formatted=True,
-                        ),
+                        ).on_click(self.__handle_profile_click),
                         ProfileListComponent(self.settings["sram"].profiles),
                         location=StickyComponent.LOCATION_BOTTOM,
                         size=1,
@@ -1010,19 +1058,76 @@ class SRAMEditorScene(Scene):
                 (
                     "&Tower Clears",
                     StickyComponent(
-                        LabelComponent(
+                        ClickableLabelComponent(
                             "<invert> up/down - select record </invert> "
                             + "<invert> d - delete selected record </invert> "
                             + "<invert> r - reset all records </invert> "
                             + "<invert> esc/q - quit </invert>",
                             formatted=True,
-                        ),
+                        ).on_click(self.__handle_tower_click),
                         TowerListComponent(self.settings["sram"].towers),
                         location=StickyComponent.LOCATION_BOTTOM,
                         size=1,
                     ),
                 ),
             ]
+        )
+
+    def __handle_profile_click(
+        self, component: Component, event: MouseInputEvent
+    ) -> bool:
+        # This is hacky, we really should define a component and just handle click
+        # events without checking position. However, I don't want to work on a
+        # list component that sizes each entry to the entry's width/height so instead
+        # I just check the mouse position.
+        if event.button == Buttons.LEFT:
+            location = component.location
+            if location is not None:
+                click_x = event.x - location.left
+                click_y = event.y - location.top
+                if click_y == 0 and click_x >= 111 and click_x <= 124:
+                    self.__display_confirm_quit()
+                    return True
+
+        return False
+
+    def __handle_tower_click(
+        self, component: Component, event: MouseInputEvent
+    ) -> bool:
+        # This is hacky, we really should define a component and just handle click
+        # events without checking position. However, I don't want to work on a
+        # list component that sizes each entry to the entry's width/height so instead
+        # I just check the mouse position.
+        if event.button == Buttons.LEFT:
+            location = component.location
+            if location is not None:
+                click_x = event.x - location.left
+                click_y = event.y - location.top
+                if click_y == 0 and click_x >= 79 and click_x <= 92:
+                    self.__display_confirm_quit()
+                    return True
+
+        return False
+
+    def __display_confirm_quit(self) -> None:
+        self.register_component(
+            DialogBoxComponent(
+                "Write back changes to SRAM file?",
+                [
+                    (
+                        "&Yes",
+                        lambda c, o: self.save_profiles(),
+                    ),
+                    (
+                        "&No",
+                        lambda c, o: self.main_loop.exit(),
+                    ),
+                    (
+                        "&Cancel",
+                        lambda c, o: self.unregister_component(c),
+                    ),
+                ],
+            )
         )
 
     def save_profiles(self) -> None:
@@ -1033,25 +1138,7 @@ class SRAMEditorScene(Scene):
     def handle_input(self, event: InputEvent) -> bool:
         if isinstance(event, KeyboardInputEvent):
             if event.character in [Keys.ESCAPE, "q"]:
-                self.register_component(
-                    DialogBoxComponent(
-                        "Write back changes to SRAM file?",
-                        [
-                            (
-                                "&Yes",
-                                lambda c, o: self.save_profiles(),
-                            ),
-                            (
-                                "&No",
-                                lambda c, o: self.main_loop.exit(),
-                            ),
-                            (
-                                "&Cancel",
-                                lambda c, o: self.unregister_component(c),
-                            ),
-                        ],
-                    )
-                )
+                self.__display_confirm_quit()
 
                 return True
         return False
